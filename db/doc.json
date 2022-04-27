@@ -1,0 +1,41 @@
+{
+    "name": "IPhone 13 Pro Max",
+    "price": 700000,
+    "currency": "NGN",
+    "quantity": 100,
+    "description": "iPhone 13 Pro Max  Charging CableEjection Pin Apple Sticker User Manual Guide",
+    "category": "Smartphones",
+    "features": [
+        {
+            "feature": "6.7-inch Super Retina XDR display with ProMotion for a faster, more responsive feel"
+        },
+        {
+            "feature": "Cinematic mode adds shallow depth of field and shifts focus automatically in your videos"
+        },
+        {
+            "feature": "Pro camera system with new 12MP Telephoto, Wide, and Ultra Wide cameras; LiDAR Scanner; 6x optical zoom range; macro photography; Photographic Styles, ProRes video, Smart HDR 4, Night mode, Apple ProRAW, 4K Dolby Vision HDR recording"
+        },
+        {
+            "feature": "12MP TrueDepth front camera with Night mode, 4K Dolby Vision HDR recording"
+        },
+        {
+            "feature": "A15 Bionic chip for lightning-fast performance"
+        },
+        {
+            "feature": "6GB RAM 128GB ROM"
+        },
+        {
+            "feature": "(12MP + 12MP + 12MP)"
+        },
+        {
+            "feature": "5G"
+        }
+    ],
+    "reviews": [
+        {
+            "user": "prima_joe",
+            "stars": 5,
+            "comment": "The phone works very well. It's very portable and has a sleek design"
+        }
+    ]
+}
