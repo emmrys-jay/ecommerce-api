@@ -1,0 +1,7 @@
+db.createUser(
+  {
+    user: "ecommerce-api",
+    pwd: "ecommerceapp001",
+    roles: [ { role: "readWrite", db: "ecommerce" } ]
+  }
+)
