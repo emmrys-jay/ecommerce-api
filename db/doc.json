@@ -1,41 +1,361 @@
-{
-    "name": "IPhone 13 Pro Max",
-    "price": 700000,
-    "currency": "NGN",
-    "quantity": 100,
-    "description": "iPhone 13 Pro Max  Charging CableEjection Pin Apple Sticker User Manual Guide",
-    "category": "Smartphones",
-    "features": [
-        {
-            "feature": "6.7-inch Super Retina XDR display with ProMotion for a faster, more responsive feel"
-        },
-        {
-            "feature": "Cinematic mode adds shallow depth of field and shifts focus automatically in your videos"
-        },
-        {
-            "feature": "Pro camera system with new 12MP Telephoto, Wide, and Ultra Wide cameras; LiDAR Scanner; 6x optical zoom range; macro photography; Photographic Styles, ProRes video, Smart HDR 4, Night mode, Apple ProRAW, 4K Dolby Vision HDR recording"
-        },
-        {
-            "feature": "12MP TrueDepth front camera with Night mode, 4K Dolby Vision HDR recording"
-        },
-        {
-            "feature": "A15 Bionic chip for lightning-fast performance"
-        },
-        {
-            "feature": "6GB RAM 128GB ROM"
-        },
-        {
-            "feature": "(12MP + 12MP + 12MP)"
-        },
-        {
-            "feature": "5G"
-        }
-    ],
-    "reviews": [
-        {
-            "user": "prima_joe",
-            "stars": 5,
-            "comment": "The phone works very well. It's very portable and has a sleek design"
-        }
-    ]
-}
+[
+    {
+        "name": "Apple IPhone 13 Pro 6.1 Inch Super Retina XDR Display With ProMotion, (6GB RAM + 128GB ROM), IOS 15, 5G, FaceTime -Gold",
+        "price": 700000,
+        "currency": "NGN",
+        "quantity": 100,
+        "description": "iPhone 13 Pro Max  Charging CableEjection Pin Apple Sticker User Manual Guide",
+        "category": "Smartphones",
+        "features": [
+            {
+                "feature": "6.7-inch Super Retina XDR display with ProMotion for a faster, more responsive feel"
+            },
+            {
+                "feature": "Cinematic mode adds shallow depth of field and shifts focus automatically in your videos"
+            },
+            {
+                "feature": "Pro camera system with new 12MP Telephoto, Wide, and Ultra Wide cameras; LiDAR Scanner; 6x optical zoom range; macro photography; Photographic Styles, ProRes video, Smart HDR 4, Night mode, Apple ProRAW, 4K Dolby Vision HDR recording"
+            },
+            {
+                "feature": "12MP TrueDepth front camera with Night mode, 4K Dolby Vision HDR recording"
+            },
+            {
+                "feature": "A15 Bionic chip for lightning-fast performance"
+            },
+            {
+                "feature": "6GB RAM 128GB ROM"
+            },
+            {
+                "feature": "(12MP + 12MP + 12MP)"
+            },
+            {
+                "feature": "5G"
+            }
+        ],
+        "reviews": [
+            {
+                "user": "prima_joe",
+                "stars": 5,
+                "comment": "The phone works very well. It's very portable and has a sleek design"
+            }
+        ]
+    },
+    {
+        "name": "Bailey Dacca",
+        "price": 483071.9,
+        "currency": "Bailey",
+        "quantity": 118127,
+        "description": "morbi",
+        "category": "et ultrices",
+        "features": [
+            {},
+            {},
+            {},
+            {}
+        ],
+        "reviews": [
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Dell Lammiman",
+        "price": 621433.9,
+        "currency": "Dell",
+        "quantity": 829152,
+        "description": "non",
+        "category": "ultrices posuere",
+        "features": [
+            {},
+            {},
+            {}
+        ],
+        "reviews": [
+            {},
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Julie Dorgan",
+        "price": 287370.9,
+        "currency": "Julie",
+        "quantity": 352551,
+        "description": "at",
+        "category": "ut",
+        "features": [
+            {},
+            {},
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Mead Gowdridge",
+        "price": 361498.1,
+        "currency": "Mead",
+        "quantity": 798263,
+        "description": "ante ipsum",
+        "category": "platea dictumst",
+        "features": [
+            {},
+            {},
+            {}
+        ],
+        "reviews": [
+            {},
+            {},
+            {},
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Karoly Sneller",
+        "price": 386520.0,
+        "currency": "Karoly",
+        "quantity": 216348,
+        "description": "bibendum felis",
+        "category": "nunc",
+        "features": [
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Kandy Goodyer",
+        "price": 84758.2,
+        "currency": "Kandy",
+        "quantity": 993616,
+        "description": "massa volutpat",
+        "category": "nec",
+        "features": [
+            {},
+            {},
+            {},
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Victoria Tracy",
+        "price": 765494.7,
+        "currency": "Victoria",
+        "quantity": 472189,
+        "description": "montes nascetur",
+        "category": "aliquet",
+        "features": [
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Lyndsie Mayou",
+        "price": 435712.2,
+        "currency": "Lyndsie",
+        "quantity": 813116,
+        "description": "volutpat in",
+        "category": "id",
+        "features": [
+            {},
+            {},
+            {},
+            {}
+        ],
+        "reviews": [
+            {},
+            {},
+            {},
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Carly Gownge",
+        "price": 805212.1,
+        "currency": "Carly",
+        "quantity": 387313,
+        "description": "vivamus",
+        "category": "nullam",
+        "features": [
+            {},
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Luce Cato",
+        "price": 960586.0,
+        "currency": "Luce",
+        "quantity": 494504,
+        "description": "at",
+        "category": "nisl aenean",
+        "features": [
+            {},
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Ario Pitman",
+        "price": 89385.9,
+        "currency": "Ario",
+        "quantity": 8896,
+        "description": "tellus nisi",
+        "category": "ultrices posuere",
+        "features": [
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Odette Unthank",
+        "price": 475331.3,
+        "currency": "Odette",
+        "quantity": 305954,
+        "description": "aliquam augue",
+        "category": "quam pede",
+        "features": [
+            {},
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Sholom Wickardt",
+        "price": 304375.1,
+        "currency": "Sholom",
+        "quantity": 969946,
+        "description": "vel",
+        "category": "ut",
+        "features": [
+            {},
+            {},
+            {},
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Dieter Leport",
+        "price": 655385.6,
+        "currency": "Dieter",
+        "quantity": 131571,
+        "description": "in faucibus",
+        "category": "potenti",
+        "features": [
+            {},
+            {},
+            {},
+            {}
+        ],
+        "reviews": [
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Deck Murtimer",
+        "price": 366683.5,
+        "currency": "Deck",
+        "quantity": 619451,
+        "description": "elit ac",
+        "category": "non interdum",
+        "features": [
+            {},
+            {},
+            {},
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Austen Gorch",
+        "price": 693777.2,
+        "currency": "Austen",
+        "quantity": 740698,
+        "description": "mi nulla",
+        "category": "in hac",
+        "features": [
+            {},
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Diarmid Dockreay",
+        "price": 884665.7,
+        "currency": "Diarmid",
+        "quantity": 82743,
+        "description": "nascetur",
+        "category": "nec nisi",
+        "features": [
+            {},
+            {},
+            {},
+            {},
+            {}
+        ],
+        "reviews": [
+            {},
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Christan Matyushkin",
+        "price": 376920.1,
+        "currency": "Christan",
+        "quantity": 926895,
+        "description": "pretium quis",
+        "category": "nunc nisl",
+        "features": [
+            {},
+            {},
+            {},
+            {},
+            {}
+        ],
+        "reviews": [
+            {},
+            {},
+            {},
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Joel Grix",
+        "price": 990325.2,
+        "currency": "Joel",
+        "quantity": 19867,
+        "description": "lorem id",
+        "category": "duis",
+        "features": [
+            {},
+            {},
+            {},
+            {},
+            {}
+        ],
+        "reviews": [
+            {},
+            {}
+        ]
+    },
+    {
+        "name": "Ivan Warre",
+        "price": 758426.5,
+        "currency": "Ivan",
+        "quantity": 380015,
+        "description": "ante ipsum",
+        "category": "ornare",
+        "features": [
+            {},
+            {},
+            {},
+            {}
+        ]
+    }
+
+]
