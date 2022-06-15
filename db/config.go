@@ -31,3 +31,7 @@ func ConfigDB() {
 
 	DB = client.Database("ecommerce")
 }
+
+func GetCollection(db *mongo.Database, collection string) *mongo.Collection {
+	return db.Collection(collection)
+}
