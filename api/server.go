@@ -14,20 +14,20 @@ func StartServer(server *Server, addr string) {
 
 	products := server.Server.Group("/products")
 	{
-		products.POST("/addOne", server.AddOneProduct)
+		products.POST("/addone", server.AddOneProduct)
 		products.POST("/add", server.AddProducts)
 		products.GET("/find", server.FindProducts)
 		products.DELETE("/delete", server.DeleteProduct)
-		products.POST("/update", server.UpdateProduct)
+		products.DELETE("/deleteall", server.DeleteAllProducts)
+		products.PUT("/update", server.UpdateProduct)
+		products.POST("/addreview", server.AddReview)
 		//products.GET("/categories", getAllCategories)
 	}
 
-	// users := server.Server.Group("/users")
-	//{
-
-	//}
-	// users.POST("/create", server.CreateUser)
-	// users.GET()
+	users := server.Server.Group("/users")
+	{
+		users.POST("/create", server.CreateUser)
+	}
 
 	server.Server.Run(addr)
 }
