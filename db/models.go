@@ -12,8 +12,7 @@ type User struct {
 	HashedPassword string             `json:"password" binding:"required"`
 	Fullname       string             `json:"fullname" binding:"required"`
 	Email          string             `json:"email" binding:"email,required"`
-	Token          string             `json:"token" binding:"required"`
-	CreatedAt      time.Time          `json:"created_at" binding:"required"`
+	CreatedAt      time.Time          `json:"created_at"`
 }
 
 type Feature struct {
