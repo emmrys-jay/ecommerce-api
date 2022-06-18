@@ -2,16 +2,13 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
-
-func GetCollection(db *mongo.Database, collection string) *mongo.Collection {
-	return db.Collection(collection)
-}
 
 func InsertOneProduct(collection *mongo.Collection, data interface{}) (*mongo.InsertOneResult, error) {
 	return collection.InsertOne(context.Background(), data)
@@ -97,6 +94,14 @@ func DeleteProduct(collection *mongo.Collection, name string) (*mongo.DeleteResu
 	return result, err
 }
 
+func DeleteAllProducts(collection *mongo.Collection) (*mongo.DeleteResult, error) {
+	ctx := context.Background()
+	filter := bson.M{}
+
+	result, err := collection.DeleteMany(ctx, filter)
+	return result, err
+}
+
 // UpdateProduct updates a product price and/or quantity
 func UpdateProduct(collection *mongo.Collection, name string, price float64, quantity int64) (*mongo.UpdateResult, error) {
 	ctx := context.Background()
@@ -110,13 +115,37 @@ func UpdateProduct(collection *mongo.Collection, name string, price float64, qua
 
 	if price != 0 {
 		product.Price = price
+		product.LastUpdated = time.Now()
 	}
 
 	if quantity != 0 {
 		product.Quantity += quantity
+		product.LastUpdated = time.Now()
 	}
 
 	result, err := collection.ReplaceOne(ctx, filter, product)
 
 	return result, err
+}
+
+func AddProductReview(collection *mongo.Collection, name string, review Review) (*mongo.UpdateResult, error) {
+	ctx := context.Background()
+
+	product, err := FindOneProduct(collection, name)
+	if err != nil {
+		return nil, err
+	}
+
+	review.CreatedAt = time.Now()
+	product.LastUpdated = time.Now()
+	product.Reviews = append(product.Reviews, review)
+
+	filter := bson.M{"name": name}
+
+	result, err := collection.ReplaceOne(ctx, filter, product)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
