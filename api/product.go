@@ -51,12 +51,13 @@ func (server *Server) AddProducts(ctx *gin.Context) {
 		val.LastUpdated = time.Now()
 	}
 
-	_, err := db.InsertProducts(collection, req)
+	result, err := db.InsertProducts(collection, req)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
-	ctx.JSON(http.StatusOK, bson.M{"result": "added successfully"})
+	response := fmt.Sprintf("added %d products successfully", len(result.InsertedIDs))
+	ctx.JSON(http.StatusOK, gin.H{"result": response})
 }
 
 // FindProductsRequest stores find products request params
@@ -231,5 +232,3 @@ func (server *Server) AddReview(ctx *gin.Context) {
 	response := fmt.Sprintf("updated %d document with name: %s", result.ModifiedCount, name.Name)
 	ctx.JSON(http.StatusOK, gin.H{"response": response})
 }
-
-// TODO: Refactor Code to work with ObjectID more
