@@ -1,4 +1,4 @@
-package api
+package handlers
 
 import (
 	"github.com/Emmrys-Jay/ecommerce-api/middleware"
