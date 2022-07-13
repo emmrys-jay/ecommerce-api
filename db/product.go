@@ -67,7 +67,7 @@ func FindProducts(collection *mongo.Collection, name string, offset, limit int64
 	findOptions.SetLimit(int64(limit))
 
 	if offset != 0 {
-		findOptions.SetSkip(2)
+		findOptions.SetSkip(offset)
 	}
 
 	cursor, err := collection.Find(ctx, filter, findOptions)

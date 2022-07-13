@@ -12,7 +12,22 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// AddProducts adds a single documents from the request body to the database
+/*
+*  AddProducts adds a single documents from the request body to the database
+*	Required fields:
+*	- Name
+*	- Price
+*	- Currency
+*	- Quantity
+*	- Description
+*	- Category
+*```
+*	Other Fields:
+*	- Features: Slice of Feature Object
+*   - SlashedPrice
+*   - Pictures: Slice of String
+*   - Videos: Slice of String
+ */
 func (server *Server) AddOneProduct(ctx *gin.Context) {
 	collection := db.GetCollection(server.DB, "products")
 	var req = db.Product{}
@@ -25,6 +40,7 @@ func (server *Server) AddOneProduct(ctx *gin.Context) {
 	// Assign time values to the time fields before sending to the database
 	req.CreatedAt = time.Now()
 	req.LastUpdated = time.Now()
+	req.NumOfOrders = 0
 
 	_, err := db.InsertOneProduct(collection, req)
 	if err != nil {
@@ -49,6 +65,7 @@ func (server *Server) AddProducts(ctx *gin.Context) {
 	for _, val := range req {
 		val.CreatedAt = time.Now()
 		val.LastUpdated = time.Now()
+		val.NumOfOrders = 0
 	}
 
 	result, err := db.InsertProducts(collection, req)
@@ -60,10 +77,11 @@ func (server *Server) AddProducts(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"result": response})
 }
 
-// FindProductsRequest stores find products request params
+// FindProductsRequest models find products request params
 type FindProductsRequest struct {
-	Name   string `form:"name" bson:"name"`
-	PageID int64  `form:"page_id" bson:"page_id"`
+	Name     string `json:"name" form:"name" bson:"name" binding:"required"`
+	PageID   int64  `json:"page_id" form:"page_id" bson:"page_id"`
+	PageSize int64  `json:"page_size" form:"page_size" bson:"page_size" binding:"min=5"`
 }
 
 // FindProductsResult models the find products request result
@@ -78,16 +96,23 @@ type FindProductsResult struct {
 func (server *Server) FindProducts(ctx *gin.Context) {
 	collection := db.GetCollection(server.DB, "products")
 	var req FindProductsRequest
-	var pageSize int64 = 5
-	req.PageID = 1
 
 	if err := ctx.ShouldBindQuery(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
 
+	if req.Name == "" {
+		ctx.JSON(http.StatusBadRequest, "invalid params")
+		return
+	}
+
 	if req.PageID < 1 {
 		req.PageID = 1
+	}
+
+	if req.PageSize < 5 {
+		req.PageSize = 5
 	}
 
 	// initialize and define new struct with names easy to understand while querying the database
@@ -97,8 +122,8 @@ func (server *Server) FindProducts(ctx *gin.Context) {
 		Limit  int64
 	}{
 		Name:   req.Name,
-		Offset: pageSize * (req.PageID - 1),
-		Limit:  pageSize,
+		Offset: req.PageSize * (req.PageID - 1),
+		Limit:  req.PageSize,
 	}
 
 	products, err := db.FindProducts(collection, param.Name, param.Offset, param.Limit)
@@ -111,12 +136,12 @@ func (server *Server) FindProducts(ctx *gin.Context) {
 		return
 	}
 
-	NoOfPages := float64(len(products)) / float64(int(pageSize))
+	NoOfPages := math.Ceil(float64(len(products)) / float64(int(req.PageSize)))
 
 	result := FindProductsResult{
 		PageID:        req.PageID,
 		ResultsFound:  int64(len(products)),
-		NumberOfPages: int64(math.Ceil(NoOfPages)),
+		NumberOfPages: int64(NoOfPages),
 		Data:          products,
 	}
 
@@ -125,7 +150,7 @@ func (server *Server) FindProducts(ctx *gin.Context) {
 
 // DeleteProductRequest stores delete request params
 type DeleteProductRequest struct {
-	Name string `form:"name" bson:"name"`
+	Name string `json:"name" form:"name" bson:"name"`
 }
 
 // DeleteProduct deletes a document whose exact name is specified
@@ -163,9 +188,10 @@ func (server *Server) DeleteAllProducts(ctx *gin.Context) {
 
 // UpdateProductRequest stores update request params
 type UpdateProductRequest struct {
-	Name     string  `form:"name"`
-	Price    float64 `form:"price"`
-	Quantity int64   `form:"quantity"`
+	Name     string       `json:"name" form:"name" binding:"required"`
+	Price    float64      `json:"price" form:"price"`
+	Quantity int64        `json:"quantity" form:"quantity"`
+	Features []db.Feature `json:"features" form:"features"`
 }
 
 // UpdateProduct updates either the price or quantity of a product specified with its exact name
@@ -183,14 +209,14 @@ func (server *Server) UpdateProduct(ctx *gin.Context) {
 		return
 	}
 
-	if req.Price == 0 && req.Quantity == 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "nothing specified to update"})
+	if req.Price == 0 && req.Quantity == 0 && req.Features == nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid update params"})
 		return
 	}
 
 	result, err := db.UpdateProduct(collection, req.Name, req.Price, req.Quantity)
 	if err != nil {
-		if err.Error() == "mongo: no documents in result" {
+		if err == mongo.ErrNoDocuments {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
 			return
 		}
@@ -202,12 +228,17 @@ func (server *Server) UpdateProduct(ctx *gin.Context) {
 
 }
 
-// AddReviewRequest stores the request value for add review request
+// AddReviewRequest models the request structure for an add review request
 type AddReviewRequest struct {
-	Name string `form:"name" binding:"required"`
+	Name string `json:"name" form:"name" binding:"required"`
 }
 
-// AddReview adds a review to a single product
+/*
+*	AddReview adds a review to a single product
+*	Params:
+*		- Name of Product - Query
+*		- Product Review - json Body
+ */
 func (server *Server) AddReview(ctx *gin.Context) {
 	collection := db.GetCollection(server.DB, "products")
 	var review db.Review
@@ -225,6 +256,10 @@ func (server *Server) AddReview(ctx *gin.Context) {
 
 	result, err := db.AddProductReview(collection, name.Name, review)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			ctx.JSON(http.StatusNotFound, errorResponse(err))
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
