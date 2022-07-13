@@ -2,16 +2,15 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func CreateUser(collection *mongo.Collection, user CreateUserRequest) (*mongo.InsertOneResult, error) {
+func CreateUser(collection *mongo.Collection, user User) (*mongo.InsertOneResult, error) {
 	ctx := context.Background()
-
-	user.CreatedAt = time.Now()
 
 	result, err := collection.InsertOne(ctx, user)
 	if err != nil {
@@ -54,3 +53,91 @@ func GetAllUsers(collection *mongo.Collection) ([]User, error) {
 
 	return users, nil
 }
+
+func DeleteUser(collection *mongo.Collection, username string) (*mongo.DeleteResult, error) {
+	ctx := context.Background()
+
+	filter := bson.M{"username": username}
+
+	result, err := collection.DeleteOne(ctx, filter)
+
+	return result, err
+}
+
+func DeleteAllUsers(collection *mongo.Collection) (*mongo.DeleteResult, error) {
+	ctx := context.Background()
+
+	filter := bson.M{}
+
+	result, err := collection.DeleteMany(ctx, filter)
+
+	return result, err
+}
+
+/*
+* Models direct database querying functions to update/modify the following user fields:
+* - username
+* - password
+* - profile_picture
+* - email
+* - mobile number
+* - default payment method
+ */
+func UpdateUserFlexible(collection *mongo.Collection, username, detail, update, salt string) error {
+	ctx := context.Background()
+	var user = User{}
+
+	filter := bson.M{"username": username}
+	result := collection.FindOne(ctx, filter)
+
+	err := result.Decode(&user)
+	if err != nil {
+		return err
+	}
+
+	switch detail {
+	case "username":
+		user.Username = update
+	case "password":
+		user.HashedPassword = update
+		user.PasswordSalt = salt
+	case "profile_picture":
+		user.ProfilePicture = update
+	case "email":
+		user.Email = update
+	case "mobile_number":
+		user.MobileNumber = update
+	case "default_payment_method":
+		user.DefaultPaymentMethod = update
+	default:
+		return fmt.Errorf("invalid field specified")
+	}
+
+	user.LastUpdated = time.Now()
+
+	_, err = collection.ReplaceOne(ctx, filter, user)
+
+	return err
+}
+
+func AddLocation(collection *mongo.Collection, username string, location Location) error {
+	ctx := context.Background()
+	var user = User{}
+
+	filter := bson.M{"username": username}
+	result := collection.FindOne(ctx, filter)
+
+	err := result.Decode(&user)
+	if err != nil {
+		return err
+	}
+
+	user.RegisteredLocations = append(user.RegisteredLocations, location)
+	user.LastUpdated = time.Now()
+
+	_, err = collection.ReplaceOne(ctx, filter, user)
+
+	return err
+}
+
+// VerifyEmail function
