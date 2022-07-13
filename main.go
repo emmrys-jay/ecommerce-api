@@ -2,11 +2,11 @@ package main
 
 import (
 	"github.com/Emmrys-Jay/ecommerce-api/db"
-	api "github.com/Emmrys-Jay/ecommerce-api/handlers"
+	handlers "github.com/Emmrys-Jay/ecommerce-api/handlers"
 	"github.com/gin-gonic/gin"
 )
 
-var server = api.Server{}
+var server = handlers.Server{}
 
 func main() {
 	db.ConfigDB()
@@ -15,5 +15,5 @@ func main() {
 		Server: gin.Default(),
 	}
 
-	api.StartServer(&server, ":8080")
+	handlers.StartServer(&server, ":8080")
 }
