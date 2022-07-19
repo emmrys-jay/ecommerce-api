@@ -18,45 +18,48 @@ type CreateUserRequest struct {
 
 type User struct {
 	ID                      primitive.ObjectID `json:"_id" bson:"_id"`
-	Username                string             `json:"username,omitempty" bson:"username" binding:"required"`
-	PasswordSalt            string             `json:"salt,omitempty"`
-	HashedPassword          string             `json:"password,omitempty" bson:"password" binding:"required"`
-	Fullname                string             `json:"fullname,omitempty" bson:"fullname" binding:"required"`
-	Email                   string             `json:"email,omitempty" bson:"email" binding:"email,required"`
-	MobileNumber            string             `json:"mobile_number,omitempty"`
-	ProfilePicture          string             `json:"picture,omitempty"`
-	CreatedAt               time.Time          `json:"created_at,omitempty" bson:"created_at"`
-	LastUpdated             time.Time          `json:"last_updated,omitempty" bson:"last_updated"`
-	EmailIsVerfied          bool               `json:"email_is_verified,omitempty" bson:"email_is_verified"`
-	DefaultPaymentMethod    string             `json:"default_payment_method,omitempty"`
-	SavedPaymentDetails     string             `json:"saved_payment_details,omitempty"`
-	Orders                  []Order            `json:"orders,omitempty"`
-	DefaultDeliveryLocation Location           `json:"default_delivery_location,omitempty"`
+	Username                string             `json:"username" bson:"username" binding:"required"`
+	PasswordSalt            string             `json:"salt" bson:"salt"`
+	HashedPassword          string             `json:"password" bson:"password" binding:"required"`
+	Fullname                string             `json:"fullname" bson:"fullname" binding:"required"`
+	Email                   string             `json:"email" bson:"email" binding:"email,required"`
+	MobileNumber            string             `json:"mobile_number" bson:"mobile_number"`
+	ProfilePicture          string             `json:"picture" bson:"picture"`
+	CreatedAt               time.Time          `json:"created_at" bson:"created_at"`
+	LastUpdated             time.Time          `json:"last_updated" bson:"last_updated"`
+	EmailIsVerfied          bool               `json:"email_is_verified" bson:"email_is_verified"`
+	DefaultPaymentMethod    string             `json:"default_payment_method" bson:"default_payment_method"`
+	SavedPaymentDetails     string             `json:"saved_payment_details" bson:"saved_payment_details"`
+	Orders                  []Order            `json:"orders" bson:"orders"`
+	DefaultDeliveryLocation Location           `json:"default_delivery_location" bson:"default_delivery_loaction"`
 
 	// Optional
-	FavouriteProducts   []Product  `json:"favourite_products,omitempty"`
-	RegisteredLocations []Location `json:"locations,omitempty"`
+	FavouriteProducts   []Product  `json:"favourite_products,omitempty" bson:"favourite_products"`
+	RegisteredLocations []Location `json:"locations,omitempty" bson:"locations"`
 }
 
 type Feature struct {
-	F string `json:"feature"`
+	F string `json:"feature" bson:"feature"`
 }
 
 type Location struct {
 	HouseNumber string `json:"house_number,omitempty"`
-	Street      string `json:"street,omitempty" binding:"required"`
-	CityOrTown  string `json:"city_or_town,omitempty" binding:"required"`
-	State       string `json:"state,omitempty" binding:"required"`
-	Country     string `json:"country,omitempty" binding:"required"`
+	PhoneNo     string `json:"telephone,omitempty"`
+	Street      string `json:"street,omitempty"`
+	CityOrTown  string `json:"city_or_town,omitempty"`
+	State       string `json:"state,omitempty"`
+	Country     string `json:"country,omitempty"`
 	ZipCode     string `json:"zip_code,omitempty"`
 }
 
 type Product struct {
+	// TODO FIx this issue with the _id json not showing in the json result
+
 	ID          primitive.ObjectID `json:"_id" bson:"_id"`
 	Name        string             `json:"name,omitempty" bson:"name" binding:"required"`
 	Price       float64            `json:"price,omitempty" bson:"price" binding:"required"`
 	Pictures    []string           `json:"pictures" bson:"pictures"`
-	Videos      []string           `json:"videos" bson:"prictures"`
+	Videos      []string           `json:"videos" bson:"videos"`
 	Currency    string             `json:"currency,omitempty" bson:"currency"`
 	Quantity    int64              `json:"quantity,omitempty" bson:"quantity" binding:"required"`
 	Description string             `json:"description,omitempty" bson:"description" binding:"required"`
@@ -68,7 +71,7 @@ type Product struct {
 	NumOfOrders int64              `json:"num_of_orders,omitempty"`
 
 	// Optional
-	SlashedPrice float64 `json:"slashed_price,omitempty" bson:"price"`
+	SlashedPrice float64 `json:"slashed_price,omitempty" bson:"slashed_price"`
 	MinimumOrder int64   `json:"minimum_order,omitempty"`
 }
 
@@ -93,9 +96,9 @@ type Order struct {
 	Username         string             `json:"username,omitempty" binding:"required" description:"user who placed the order"`
 	FullName         string             `json:"fullname,omitempty" binding:"required" description:"fullname specified during checkout"`
 	DeliveryLocation Location           `json:"delivery_address,omitempty" description:"location specified during checkout"`
-	DeliveryPhone    string             `json:"delivery_phone,omitempty" binding:"required"`
 	DeliveryFee      float64            `json:"delivery_fee,omitempty" binding:"required"`
 	Product          Product            `json:"product,omitempty" binding:"required"`
+	ProductQuantity  int                `json:"product_quantity,omitempty" binding:"required"`
 	IsDelivered      bool               `json:"is_delivered,omitempty" binding:"required"`
 	CreatedAt        time.Time          `json:"created_at,omitempty"`
 	TimeDelivered    time.Time          `json:"time_delivered,omitempty"`
