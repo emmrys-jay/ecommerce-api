@@ -66,6 +66,7 @@ func main() {
 	endpoints.InitializeCartEndpoints(database, server, userMdw)
 	endpoints.InitializeUserEndpoints(database, server, userMdw)
 	endpoints.InitializeProductEndpoints(database, server, userMdw)
+	endpoints.InitializeOrdersEndpoints(database, server, userMdw)
 
 	err = server.Run()
 	if err != nil {
