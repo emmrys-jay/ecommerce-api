@@ -1,15 +1,16 @@
-package db
+package repository
 
 import (
 	"context"
 	"fmt"
 	"time"
 
+	"github.com/Emmrys-Jay/ecommerce-api/entity"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func CreateUser(collection *mongo.Collection, user User) (*mongo.InsertOneResult, error) {
+func CreateUser(collection *mongo.Collection, user entity.User) (*mongo.InsertOneResult, error) {
 	ctx := context.Background()
 
 	result, err := collection.InsertOne(ctx, user)
@@ -20,9 +21,9 @@ func CreateUser(collection *mongo.Collection, user User) (*mongo.InsertOneResult
 	return result, nil
 }
 
-func GetUser(collection *mongo.Collection, username string) (*User, error) {
+func GetUser(collection *mongo.Collection, username string) (*entity.User, error) {
 	ctx := context.Background()
-	var user = &User{}
+	var user = &entity.User{}
 	filter := bson.M{"username": username}
 
 	result := collection.FindOne(ctx, filter)
@@ -35,10 +36,10 @@ func GetUser(collection *mongo.Collection, username string) (*User, error) {
 	return user, err
 }
 
-func GetAllUsers(collection *mongo.Collection) ([]User, error) {
+func GetAllUsers(collection *mongo.Collection) ([]entity.User, error) {
 	ctx := context.Background()
-	var user = User{}
-	var users []User
+	var user = entity.User{}
+	var users []entity.User
 	filter := bson.M{}
 
 	cursor, err := collection.Find(ctx, filter)
@@ -85,7 +86,7 @@ func DeleteAllUsers(collection *mongo.Collection) (*mongo.DeleteResult, error) {
  */
 func UpdateUserFlexible(collection *mongo.Collection, username, detail, update, salt string) error {
 	ctx := context.Background()
-	var user = User{}
+	var user = entity.User{}
 
 	filter := bson.M{"username": username}
 	result := collection.FindOne(ctx, filter)
@@ -120,16 +121,17 @@ func UpdateUserFlexible(collection *mongo.Collection, username, detail, update, 
 	return err
 }
 
-func AddLocation(collection *mongo.Collection, username string, location Location) error {
+func AddLocation(collection *mongo.Collection, username string, location entity.Location) (*entity.Location, error) {
 	ctx := context.Background()
-	var user = User{}
 
 	filter := bson.M{"username": username}
-	result := collection.FindOne(ctx, filter)
-
-	err := result.Decode(&user)
+	user, err := GetUser(collection, username)
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	if user.DefaultDeliveryLocation.CityOrTown == "" {
+		user.DefaultDeliveryLocation = location
 	}
 
 	user.RegisteredLocations = append(user.RegisteredLocations, location)
@@ -137,7 +139,26 @@ func AddLocation(collection *mongo.Collection, username string, location Locatio
 
 	_, err = collection.ReplaceOne(ctx, filter, user)
 
-	return err
+	return &location, err
+}
+
+func AddOrderToUser(collection *mongo.Collection, username string, order *entity.Order) (*mongo.UpdateResult, error) {
+	ctx := context.Background()
+
+	filter := bson.M{"username": username}
+
+	user, err := GetUser(collection, username)
+	if err != nil {
+		return nil, err
+	}
+
+	user.Orders = append(user.Orders, *order)
+	user.LastUpdated = time.Now()
+
+	result, err := collection.ReplaceOne(ctx, filter, user)
+
+	return result, err
+
 }
 
 // VerifyEmail function

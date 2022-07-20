@@ -1,8 +1,10 @@
-package db
+package repository
 
 import (
 	"context"
 	"time"
+
+	"github.com/Emmrys-Jay/ecommerce-api/entity"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -14,7 +16,7 @@ func InsertOneProduct(collection *mongo.Collection, data interface{}) (*mongo.In
 	return collection.InsertOne(context.Background(), data)
 }
 
-func InsertProducts(collection *mongo.Collection, data []Product) (*mongo.InsertManyResult, error) {
+func InsertProducts(collection *mongo.Collection, data []entity.Product) (*mongo.InsertManyResult, error) {
 	var ui []interface{}
 	for _, t := range data {
 		ui = append(ui, t)
@@ -23,9 +25,9 @@ func InsertProducts(collection *mongo.Collection, data []Product) (*mongo.Insert
 	return collection.InsertMany(context.Background(), ui)
 }
 
-func FindOneProduct(collection *mongo.Collection, name string) (Product, error) {
+func FindOneProduct(collection *mongo.Collection, name string) (entity.Product, error) {
 	ctx := context.Background()
-	var product Product
+	var product entity.Product
 
 	filter := bson.M{"name": name}
 	err := collection.FindOne(ctx, filter).Decode(&product)
@@ -36,7 +38,7 @@ func FindOneProduct(collection *mongo.Collection, name string) (Product, error) 
 	return product, nil
 }
 
-func FindProducts(collection *mongo.Collection, name string, offset, limit int64) ([]Product, error) {
+func FindProducts(collection *mongo.Collection, name string, offset, limit int64) ([]entity.Product, error) {
 	ctx := context.Background()
 	filter := bson.M{}
 	findOptions := options.Find()
@@ -76,9 +78,9 @@ func FindProducts(collection *mongo.Collection, name string, offset, limit int64
 	}
 	defer cursor.Close(context.Background())
 
-	var products = []Product{}
+	var products = []entity.Product{}
 	for cursor.Next(ctx) {
-		var product Product
+		var product entity.Product
 		_ = cursor.Decode(&product)
 		products = append(products, product)
 	}
@@ -128,7 +130,7 @@ func UpdateProduct(collection *mongo.Collection, name string, price float64, qua
 	return result, err
 }
 
-func AddProductReview(collection *mongo.Collection, name string, review Review) (*mongo.UpdateResult, error) {
+func AddProductReview(collection *mongo.Collection, name string, review entity.Review) (*mongo.UpdateResult, error) {
 	ctx := context.Background()
 
 	product, err := FindOneProduct(collection, name)

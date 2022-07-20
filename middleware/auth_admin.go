@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AuthorizeJWT() gin.HandlerFunc {
+func AuthorizeAdmin(adminName string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		auth_token := ctx.GetHeader("Authorization")
 		if auth_token == "" {
@@ -28,6 +28,12 @@ func AuthorizeJWT() gin.HandlerFunc {
 		}
 
 		if err := payload.Valid(); err != nil {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"unauthorized": "access denied"})
+			ctx.Abort()
+			return
+		}
+
+		if payload.Username != adminName {
 			ctx.JSON(http.StatusUnauthorized, gin.H{"unauthorized": "access denied"})
 			ctx.Abort()
 			return

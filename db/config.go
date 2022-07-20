@@ -12,9 +12,9 @@ import (
 )
 
 //const dbDetails = "mongodb://ecommerce-api:ecommerceapp001@localhost:27017"
-var DB *mongo.Database
 
-func ConfigDB() {
+// Add username param and password
+func ConfigDB() *mongo.Database {
 	// get a mongo sessions
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -29,7 +29,8 @@ func ConfigDB() {
 
 	fmt.Println("You connected to your mongo database.")
 
-	DB = client.Database("ecommerce")
+	db := client.Database("ecommerce")
+	return db
 }
 
 func GetCollection(db *mongo.Database, collection string) *mongo.Collection {
