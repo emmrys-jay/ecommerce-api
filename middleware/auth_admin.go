@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AuthorizeAdmin(adminName string) gin.HandlerFunc {
+func AuthorizeAdmin(adminUsername string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		auth_token := ctx.GetHeader("Authorization")
 		if auth_token == "" {
@@ -33,7 +33,7 @@ func AuthorizeAdmin(adminName string) gin.HandlerFunc {
 			return
 		}
 
-		if payload.Username != adminName {
+		if payload.Username != adminUsername {
 			ctx.JSON(http.StatusUnauthorized, gin.H{"unauthorized": "access denied"})
 			ctx.Abort()
 			return
