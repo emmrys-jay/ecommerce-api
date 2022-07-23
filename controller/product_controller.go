@@ -103,11 +103,13 @@ func (u *UserController) AddReview(ctx *gin.Context) {
 		return
 	}
 
-	// username, err := util.UsernameFromToken(ctx)
-	// if err != nil {
-	// 	ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
-	// 	return
-	// }
+	username, err := util.UsernameFromToken(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
+		return
+	}
+
+	review.User = username
 
 	productID := ctx.Param("productID")
 	if productID == "" {
