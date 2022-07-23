@@ -4,87 +4,19 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"time"
+	"strconv"
 
 	"github.com/Emmrys-Jay/ecommerce-api/db"
 	"github.com/Emmrys-Jay/ecommerce-api/entity"
 	"github.com/Emmrys-Jay/ecommerce-api/repository"
 	"github.com/Emmrys-Jay/ecommerce-api/util"
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-/*
-*  AddProducts adds a single documents from the request body to the database
-*	Required fields:
-*	- Name
-*	- Price
-*	- Currency
-*	- Quantity
-*	- Description
-*	- Category
-*```
-*	Other Fields:
-*	- Features: Slice of Feature Object
-*   - SlashedPrice
-*   - Pictures: Slice of String
-*   - Videos: Slice of String
- */
-func (u *UserController) AddOneProduct(ctx *gin.Context) {
-	collection := db.GetCollection(u.Database, "products")
-	var req = entity.Product{}
-
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
-		return
-	}
-
-	// Assign time values to the time fields before sending to the database
-	req.ID = primitive.NewObjectIDFromTimestamp(time.Now())
-	req.CreatedAt = time.Now()
-	req.LastUpdated = time.Now()
-	req.NumOfOrders = 0
-
-	_, err := repository.InsertOneProduct(collection, req)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
-		return
-	}
-
-	ctx.JSON(http.StatusOK, bson.M{"result": "added successfully"})
-}
-
-// AddProducts adds multiple documents from the request body to the database
-func (u *UserController) AddProducts(ctx *gin.Context) {
-	collection := db.GetCollection(u.Database, "products")
-	var req = []entity.Product{}
-
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
-		return
-	}
-
-	// Assign time values to the time fields before sending to the database
-	for _, val := range req {
-		val.CreatedAt = time.Now()
-		val.LastUpdated = time.Now()
-		val.NumOfOrders = 0
-	}
-
-	result, err := repository.InsertProducts(collection, req)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
-		return
-	}
-	response := fmt.Sprintf("added %d products successfully", len(result.InsertedIDs))
-	ctx.JSON(http.StatusOK, gin.H{"result": response})
-}
-
 // FindProductsRequest models find products request params
 type FindProductsRequest struct {
-	Name     string `json:"name" form:"name" bson:"name" binding:"required"`
+	Name     string `json:"name" form:"name" bson:"name"`
 	PageID   int64  `json:"page_id" form:"page_id" bson:"page_id"`
 	PageSize int64  `json:"page_size" form:"page_size" bson:"page_size"`
 }
@@ -107,11 +39,6 @@ func (u *UserController) FindProducts(ctx *gin.Context) {
 		return
 	}
 
-	if req.Name == "" {
-		ctx.JSON(http.StatusBadRequest, "invalid params")
-		return
-	}
-
 	if req.PageID < 1 {
 		req.PageID = 1
 	}
@@ -131,7 +58,7 @@ func (u *UserController) FindProducts(ctx *gin.Context) {
 		Limit:  req.PageSize,
 	}
 
-	products, err := repository.FindProducts(collection, param.Name, param.Offset, param.Limit)
+	products, length, err := repository.FindProducts(collection, param.Name, param.Offset, param.Limit)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			ctx.JSON(http.StatusNotFound, util.ErrorResponse(err))
@@ -141,11 +68,11 @@ func (u *UserController) FindProducts(ctx *gin.Context) {
 		return
 	}
 
-	NoOfPages := math.Ceil(float64(len(products)) / float64(int(req.PageSize)))
+	NoOfPages := math.Ceil(float64(length) / float64(int(req.PageSize)))
 
 	result := FindProductsResult{
 		PageID:        req.PageID,
-		ResultsFound:  int64(len(products)),
+		ResultsFound:  int64(length),
 		NumberOfPages: int64(NoOfPages),
 		Data:          products,
 	}
@@ -153,33 +80,42 @@ func (u *UserController) FindProducts(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, result)
 }
 
-// AddReviewRequest models the request structure for an add review request
-type AddReviewRequest struct {
-	Name string `json:"name" form:"name" binding:"required"`
-}
-
 /*
 *	AddReview adds a review to a single product
 *	Params:
-*		- Name of Product - Query
+*		- Name of Product - URL param
 *		- Product Review - json Body
  */
+
+//  type Review struct {
+// 	User      string    `json:"user"`
+// 	Stars     int64     `json:"stars" binding:"required"`
+// 	Comment   string    `json:"comment,omitempty"`
+// 	CreatedAt time.Time `json:"created_at"`
+// }
+
 func (u *UserController) AddReview(ctx *gin.Context) {
 	collection := db.GetCollection(u.Database, "products")
 	var review entity.Review
-	var name AddReviewRequest
 
 	if err := ctx.ShouldBindJSON(&review); err != nil {
 		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
 		return
 	}
 
-	if err := ctx.ShouldBindQuery(&name); err != nil {
-		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
+	// username, err := util.UsernameFromToken(ctx)
+	// if err != nil {
+	// 	ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
+	// 	return
+	// }
+
+	productID := ctx.Param("productID")
+	if productID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid param - product ID"})
 		return
 	}
 
-	result, err := repository.AddProductReview(collection, name.Name, review)
+	result, err := repository.AddProductReview(collection, productID, review)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			ctx.JSON(http.StatusNotFound, util.ErrorResponse(err))
@@ -189,8 +125,64 @@ func (u *UserController) AddReview(ctx *gin.Context) {
 		return
 	}
 
-	response := fmt.Sprintf("updated %d document with name: %s", result.ModifiedCount, name.Name)
+	response := fmt.Sprintf("updated %d document with id: %s", result.ModifiedCount, productID)
 	ctx.JSON(http.StatusOK, gin.H{"response": response})
 }
 
-// Fix Issue with the number of results found for a FindProducts search
+// GetProductCategories returns the unique categories of products currently stored in the database
+// func (u *UserController) GetProductCategories(ctx *gin.Context) {
+// 	collection := db.GetCollection(u.Database, "products")
+
+// }
+
+// GetProductByCategory returns products that belong to a category
+func (u *UserController) GetProductsByCategory(ctx *gin.Context) {
+	collection := db.GetCollection(u.Database, "products")
+	pageSize, pageID := 5, 1
+	var err error
+
+	ctgy := ctx.Param("category") // Get category from url path
+	pageIDString := ctx.Query("page_id")
+
+	if ctgy == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid url param"})
+		return
+	}
+
+	if pageIDString != "" {
+		pageID, err = strconv.Atoi(pageIDString)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
+			return
+		}
+
+		if pageID < 1 {
+			pageID = 1
+		}
+	}
+
+	var param = struct {
+		Offset int
+		Limit  int
+	}{
+		Offset: pageSize * (pageID - 1),
+		Limit:  pageSize,
+	}
+
+	products, length, err := repository.GetProductsByCategory(collection, ctgy, param.Offset, param.Limit)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
+		return
+	}
+
+	NoOfPages := math.Ceil(float64(length) / float64(int(pageSize)))
+
+	result := FindProductsResult{
+		PageID:        int64(pageID),
+		ResultsFound:  int64(length),
+		NumberOfPages: int64(NoOfPages),
+		Data:          products,
+	}
+
+	ctx.JSON(http.StatusOK, result)
+}
