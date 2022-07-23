@@ -27,14 +27,14 @@ func NewUserController(db *mongo.Database) *UserController {
 
 // UserResponse models the response of a createuser or loginuser request
 type UserResponse struct {
-	ID             primitive.ObjectID `json:"_id"`
-	Username       string             `json:"username"`
-	Fullname       string             `json:"fullname"`
-	Email          string             `json:"email"`
-	Token          string             `json:"token"`
-	CreatedAt      time.Time          `json:"created_at"`
-	EmailIsVerfied bool               `json:"email_is_verified"`
-	MobileNumber   string             `json:"mobile_number,omitempty"`
+	ID             string    `json:"_id"`
+	Username       string    `json:"username"`
+	Fullname       string    `json:"fullname"`
+	Email          string    `json:"email"`
+	Token          string    `json:"token"`
+	CreatedAt      time.Time `json:"created_at"`
+	EmailIsVerfied bool      `json:"email_is_verified"`
+	MobileNumber   string    `json:"mobile_number,omitempty"`
 }
 
 // CreateUser handles requests to create a new user from a client
@@ -53,7 +53,7 @@ func (u *UserController) CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	user.ID = primitive.NewObjectIDFromTimestamp(time.Now())
+	user.ID = primitive.NewObjectIDFromTimestamp(time.Now()).String()
 	user.PasswordSalt = util.RandomString()
 	user.HashedPassword, _ = util.HashPassword(user.PasswordSalt + user.HashedPassword)
 	user.EmailIsVerfied = false
@@ -116,7 +116,7 @@ func (u *UserController) LoginUser(ctx *gin.Context) {
 		return
 	}
 
-	storedUser, err := repository.GetUser(collection, user.Username)
+	storedUser, err := repository.GetUser(collection, "admin")
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
@@ -156,15 +156,36 @@ func (u *UserController) LoginUser(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, response)
 }
 
+type GetUserResponse struct {
+	ID                      string            `json:"_id,omitempty"`
+	Username                string            `json:"username,omitempty"`
+	Fullname                string            `json:"fullname,omitempty"`
+	PasswordSalt            string            `json:"password_salt"`
+	Email                   string            `json:"email,omitempty"`
+	EmailIsVerfied          bool              `json:"email_is_verified,omitempty"`
+	MobileNumber            string            `json:"mobile_number,omitempty"`
+	DefaultPaymentMethod    string            `json:"default_payment_method,omitempty"`
+	SavedPaymentDetails     string            `json:"saved_payment_details,omitempty"`
+	DefaultDeliveryLocation entity.Location   `json:"default_delivery_location,omitempty"`
+	RegisteredLocations     []entity.Location `json:"registered_locations,omitempty"`
+	CreatedAt               time.Time         `json:"created_at,omitempty"`
+}
+
 // GetUser handles an admin request to get a single user stored in the database
 func (u *UserController) GetUser(ctx *gin.Context) {
 	collection := db.GetCollection(u.Database, "users")
-	username := ctx.Query("username")
+	username := ctx.Param("username")
 
 	if username == "" {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid params"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid params"})
 		return
 	}
+
+	// username, err := util.UsernameFromToken(ctx)
+	// if err != nil {
+	// 	ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
+	// 	return
+	// }
 
 	user, err := repository.GetUser(collection, username)
 	if err != nil {
@@ -175,11 +196,26 @@ func (u *UserController) GetUser(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, err)
 	}
 
-	ctx.JSON(http.StatusOK, user)
+	response := GetUserResponse{
+		ID:                      user.ID,
+		Username:                user.Username,
+		Fullname:                user.Fullname,
+		PasswordSalt:            user.PasswordSalt,
+		Email:                   user.Email,
+		EmailIsVerfied:          user.EmailIsVerfied,
+		MobileNumber:            user.MobileNumber,
+		DefaultPaymentMethod:    user.DefaultPaymentMethod,
+		SavedPaymentDetails:     user.SavedPaymentDetails,
+		DefaultDeliveryLocation: user.DefaultDeliveryLocation,
+		RegisteredLocations:     user.RegisteredLocations,
+		CreatedAt:               user.CreatedAt,
+	}
+
+	ctx.JSON(http.StatusOK, response)
 }
 
 type ChangePasswordRequest struct {
-	Username    string `json:"username" form:"username" binding:"required"`
+	// Username    string `json:"username" form:"password" binding:"required"`
 	Password    string `json:"password" form:"password" binding:"required"`
 	NewPassword string `json:"new_password" form:"new_password" binding:"required"`
 }
@@ -194,12 +230,13 @@ func (u *UserController) ChangePassword(ctx *gin.Context) {
 		return
 	}
 
-	if req.NewPassword == req.Password {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No new password specified"})
+	username, err := util.UsernameFromToken(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
 		return
 	}
 
-	user, err := repository.GetUser(collection, req.Username)
+	user, err := repository.GetUser(collection, username)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
@@ -210,14 +247,19 @@ func (u *UserController) ChangePassword(ctx *gin.Context) {
 		return
 	}
 
+	if req.NewPassword == req.Password {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No new password specified"})
+		return
+	}
+
 	newPasswordSalt := util.RandomString()
-	newHashPassword, err := util.HashPassword(newPasswordSalt + req.Password)
+	newHashPassword, err := util.HashPassword(newPasswordSalt + req.NewPassword)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
 	}
 
-	err = repository.UpdateUserFlexible(collection, req.Username, "password", newHashPassword, newPasswordSalt)
+	err = repository.UpdateUserFlexible(collection, username, "password", newHashPassword, newPasswordSalt)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
@@ -227,9 +269,9 @@ func (u *UserController) ChangePassword(ctx *gin.Context) {
 }
 
 type UpdateUserRequest struct {
-	Username string `json:"username" form:"username" binding:"required"`
-	Detail   string `json:"detail" form:"detail" binding:"required"` //field to be updated
-	Update   string `json:"update" form:"update" binding:"required"`
+	// Username string `json:"username" form:"username" binding:"required"`
+	Detail string `json:"detail" form:"detail" binding:"required"` //field to be updated
+	Update string `json:"update" form:"update" binding:"required"`
 }
 
 /*
@@ -259,7 +301,13 @@ func (u *UserController) UpdateUserFlexible(ctx *gin.Context) {
 		return
 	}
 
-	err := repository.UpdateUserFlexible(collection, req.Username, req.Detail, req.Update, "")
+	username, err := util.UsernameFromToken(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
+		return
+	}
+
+	err = repository.UpdateUserFlexible(collection, username, req.Detail, req.Update, "")
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
@@ -270,9 +318,19 @@ func (u *UserController) UpdateUserFlexible(ctx *gin.Context) {
 }
 
 type AddLocationRequest struct {
-	Username string          `json:"username" form:"username" binding:"required"`
+	// Username string          `json:"username" form:"username" binding:"required"`
 	Location entity.Location `json:"location" binding:"required"`
 }
+
+// type Location struct {
+// 	HouseNumber string `json:"house_number,omitempty"`
+// 	PhoneNo     string `json:"telephone,omitempty"`
+// 	Street      string `json:"street,omitempty"`
+// 	CityOrTown  string `json:"city_or_town,omitempty"`
+// 	State       string `json:"state,omitempty"`
+// 	Country     string `json:"country,omitempty"`
+// 	ZipCode     string `json:"zip_code,omitempty"`
+// }
 
 // AddLocation handles a register/add location request from a users account
 func (u *UserController) AddLocation(ctx *gin.Context) {
@@ -284,7 +342,13 @@ func (u *UserController) AddLocation(ctx *gin.Context) {
 		return
 	}
 
-	location, err := repository.AddLocation(collection, req.Username, req.Location)
+	username, err := util.UsernameFromToken(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
+		return
+	}
+
+	location, err := repository.AddLocation(collection, username, req.Location)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
