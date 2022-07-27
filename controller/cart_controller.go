@@ -3,9 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
-	auth "github.com/Emmrys-Jay/ecommerce-api/auth/jwt"
 	"github.com/Emmrys-Jay/ecommerce-api/db"
 	"github.com/Emmrys-Jay/ecommerce-api/repository"
 	util "github.com/Emmrys-Jay/ecommerce-api/util"
@@ -14,8 +12,8 @@ import (
 )
 
 type AddToCartRequest struct {
-	ProductName string `json:"product_name" form:"product_name"`
-	Quantity    int64  `json:"quantity" form:"quantity,min=1"`
+	ProductID string `json:"product_id" form:"product_name"`
+	Quantity  int64  `json:"quantity" form:"quantity,min=1"`
 }
 
 // AddToCart response to add to cart requests from a user
@@ -28,7 +26,7 @@ func (u *UserController) AddToCart(ctx *gin.Context) {
 		return
 	}
 
-	if req.ProductName == "" {
+	if req.ProductID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid params"})
 		return
 	}
@@ -37,20 +35,19 @@ func (u *UserController) AddToCart(ctx *gin.Context) {
 		req.Quantity = 1
 	}
 
-	tokenMaker, _ := auth.NewTokenMaker()
+	username, err := util.UsernameFromToken(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
+		return
+	}
 
-	// Get Authorization header and split it to get JWT token
-	// Verify JWT token to get custom payload which contains username information
-	tokenString := strings.Split(ctx.GetHeader("Authorization"), " ")[1]
-	payload, _ := tokenMaker.VerifyToken(tokenString)
-
-	result, err := repository.AddToCart(collection, req.Quantity, req.ProductName, payload.Username)
+	result, err := repository.AddToCart(collection, req.Quantity, req.ProductID, username)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
 	}
 
-	response := fmt.Sprintf("added %d products successfully with id: %s", req.Quantity, result.InsertedID)
+	response := fmt.Sprintf("added %d products successfully to cart with id: %s", req.Quantity, result.InsertedID)
 	ctx.JSON(http.StatusOK, gin.H{"result": response})
 }
 
@@ -58,21 +55,20 @@ func (u *UserController) AddToCart(ctx *gin.Context) {
 func (u *UserController) RemoveFromCart(ctx *gin.Context) {
 	collection := db.GetCollection(u.Database, "cart")
 
-	productName := ctx.Query("product_name")
+	cartItemID := ctx.Param("cart-id")
 
-	if productName == "" {
+	if cartItemID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid params"})
 		return
 	}
 
-	tokenMaker, _ := auth.NewTokenMaker()
+	username, err := util.UsernameFromToken(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
+		return
+	}
 
-	// Get Authorization header and split it to get JWT token
-	// Verify JWT token to get custom payload which contains username information
-	tokenString := strings.Split(ctx.GetHeader("Authorization"), " ")[1]
-	payload, _ := tokenMaker.VerifyToken(tokenString)
-
-	result, err := repository.RemoveFromCart(collection, productName, payload.Username)
+	result, err := repository.RemoveFromCart(collection, cartItemID, username)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
@@ -82,27 +78,28 @@ func (u *UserController) RemoveFromCart(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"not found": "specified params did not match any document"})
 
 	}
+
+	ctx.JSON(http.StatusOK, gin.H{"success": "removed product from cart"})
 }
 
 // DecrementCartQuantity substracts one from the quantity of a particular product stored in cart
 func (u *UserController) DecrementCartQuantity(ctx *gin.Context) {
 	collection := db.GetCollection(u.Database, "cart")
 
-	productName := ctx.Query("product_name")
+	cartItemID := ctx.Param("cart-id")
 
-	if productName == "" {
+	if cartItemID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid params"})
 		return
 	}
 
-	tokenMaker, _ := auth.NewTokenMaker()
+	username, err := util.UsernameFromToken(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
+		return
+	}
 
-	// Get Authorization header and split it to get JWT token
-	// Verify JWT token to get custom payload which contains username information
-	tokenString := strings.Split(ctx.GetHeader("Authorization"), " ")[1]
-	payload, _ := tokenMaker.VerifyToken(tokenString)
-
-	cartItem, err := repository.GetCartItem(collection, productName, payload.Username)
+	cartItem, err := repository.GetCartItem(collection, cartItemID, username)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			ctx.JSON(http.StatusNotFound, gin.H{"not found": "No product in your cart matches the params specified"})
@@ -113,7 +110,7 @@ func (u *UserController) DecrementCartQuantity(ctx *gin.Context) {
 	}
 
 	if cartItem.Quantity == 1 {
-		_, err := repository.RemoveFromCart(collection, productName, payload.Username)
+		_, err := repository.RemoveFromCart(collection, cartItemID, username)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 			return
@@ -123,7 +120,7 @@ func (u *UserController) DecrementCartQuantity(ctx *gin.Context) {
 		return
 	}
 
-	_, err = repository.SubtractCartQuantity(collection, productName, payload.Username)
+	_, err = repository.SubtractCartQuantity(collection, cartItemID, username)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
@@ -137,14 +134,13 @@ func (u *UserController) DecrementCartQuantity(ctx *gin.Context) {
 func (u *UserController) GetUserCartItems(ctx *gin.Context) {
 	collection := db.GetCollection(u.Database, "cart")
 
-	tokenMaker, _ := auth.NewTokenMaker()
+	username, err := util.UsernameFromToken(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
+		return
+	}
 
-	// Get Authorization header and split it to get JWT token
-	// Verify JWT token to get custom payload which contains username information
-	tokenString := strings.Split(ctx.GetHeader("Authorization"), " ")[1]
-	payload, _ := tokenMaker.VerifyToken(tokenString)
-
-	cartItems, err := repository.GetUserCartItems(collection, payload.Username)
+	cartItems, err := repository.GetUserCartItems(collection, username)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			ctx.JSON(http.StatusNotFound, gin.H{"not found": "No items in cart currently"})

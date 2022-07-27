@@ -12,8 +12,8 @@ func InitializeCartEndpoints(db *mongo.Database, e *gin.Engine, mdw gin.HandlerF
 	cart := e.Group("/user/cart", mdw)
 	{
 		cart.POST("/add", usercontroller.AddToCart)
-		cart.DELETE("/delete", usercontroller.RemoveFromCart)
-		cart.PUT("/decrement", usercontroller.DecrementCartQuantity)
-		cart.GET("/getAll", usercontroller.GetUserCartItems)
+		cart.DELETE("/remove/:cart-id", usercontroller.RemoveFromCart)
+		cart.PUT("/decrement/:cart-id", usercontroller.DecrementCartQuantity)
+		cart.GET("/getall", usercontroller.GetUserCartItems)
 	}
 }
