@@ -53,7 +53,7 @@ func (u *UserController) CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	user.ID = primitive.NewObjectIDFromTimestamp(time.Now()).String()
+	user.ID = primitive.NewObjectIDFromTimestamp(time.Now()).String()[10:34]
 	user.PasswordSalt = util.RandomString()
 	user.HashedPassword, _ = util.HashPassword(user.PasswordSalt + user.HashedPassword)
 	user.EmailIsVerfied = false
@@ -160,15 +160,18 @@ type GetUserResponse struct {
 	ID                      string            `json:"_id,omitempty"`
 	Username                string            `json:"username,omitempty"`
 	Fullname                string            `json:"fullname,omitempty"`
-	PasswordSalt            string            `json:"password_salt"`
 	Email                   string            `json:"email,omitempty"`
 	EmailIsVerfied          bool              `json:"email_is_verified,omitempty"`
 	MobileNumber            string            `json:"mobile_number,omitempty"`
+	ProfilePicture          string            `json:"picture,omitempty" bson:"picture"`
 	DefaultPaymentMethod    string            `json:"default_payment_method,omitempty"`
 	SavedPaymentDetails     string            `json:"saved_payment_details,omitempty"`
 	DefaultDeliveryLocation entity.Location   `json:"default_delivery_location,omitempty"`
 	RegisteredLocations     []entity.Location `json:"registered_locations,omitempty"`
+	FavouriteProducts       []entity.Product  `json:"favourite_products,omitempty" bson:"favourite_products"`
+	Orders                  []entity.Order    `json:"orders,omitempty" bson:"orders"`
 	CreatedAt               time.Time         `json:"created_at,omitempty"`
+	LastUpdated             time.Time         `json:"last_updated,omitempty" bson:"last_updated"`
 }
 
 // GetUser handles an admin request to get a single user stored in the database
@@ -197,18 +200,22 @@ func (u *UserController) GetUser(ctx *gin.Context) {
 	}
 
 	response := GetUserResponse{
-		ID:                      user.ID,
-		Username:                user.Username,
-		Fullname:                user.Fullname,
-		PasswordSalt:            user.PasswordSalt,
-		Email:                   user.Email,
-		EmailIsVerfied:          user.EmailIsVerfied,
-		MobileNumber:            user.MobileNumber,
+		ID:             user.ID,
+		Username:       user.Username,
+		Fullname:       user.Fullname,
+		Email:          user.Email,
+		EmailIsVerfied: user.EmailIsVerfied,
+		MobileNumber:   user.MobileNumber,
+		ProfilePicture: user.ProfilePicture,
+
 		DefaultPaymentMethod:    user.DefaultPaymentMethod,
 		SavedPaymentDetails:     user.SavedPaymentDetails,
 		DefaultDeliveryLocation: user.DefaultDeliveryLocation,
 		RegisteredLocations:     user.RegisteredLocations,
 		CreatedAt:               user.CreatedAt,
+		LastUpdated:             user.LastUpdated,
+		Orders:                  user.Orders,
+		FavouriteProducts:       user.FavouriteProducts,
 	}
 
 	ctx.JSON(http.StatusOK, response)
