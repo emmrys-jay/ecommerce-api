@@ -2,18 +2,16 @@ package auth
 
 import (
 	"time"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Payload struct {
-	ID        primitive.ObjectID
+	ID        string
 	Username  string
 	CreatedAt time.Time
 	ExpiresAt time.Time
 }
 
-func NewPayload(username string, id primitive.ObjectID) *Payload {
+func NewPayload(username string, id string) *Payload {
 	return &Payload{
 		ID:        id,
 		Username:  username,
