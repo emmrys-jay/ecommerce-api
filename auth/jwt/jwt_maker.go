@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/golang-jwt/jwt"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type TokenMaker struct {
@@ -35,7 +34,7 @@ func getSecretKey() ([]byte, error) {
 	return []byte(secretKey), nil
 }
 
-func (maker *TokenMaker) CreateToken(username string, id primitive.ObjectID) (string, error) {
+func (maker *TokenMaker) CreateToken(username string, id string) (string, error) {
 	payload := NewPayload(username, id)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, payload)
