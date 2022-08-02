@@ -116,7 +116,7 @@ func (u *UserController) LoginUser(ctx *gin.Context) {
 		return
 	}
 
-	storedUser, err := repository.GetUser(collection, "admin")
+	storedUser, err := repository.GetUser(collection, user.Username)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
@@ -177,18 +177,12 @@ type GetUserResponse struct {
 // GetUser handles an admin request to get a single user stored in the database
 func (u *UserController) GetUser(ctx *gin.Context) {
 	collection := db.GetCollection(u.Database, "users")
-	username := ctx.Param("username")
 
-	if username == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid params"})
+	username, err := util.UsernameFromToken(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
 		return
 	}
-
-	// username, err := util.UsernameFromToken(ctx)
-	// if err != nil {
-	// 	ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
-	// 	return
-	// }
 
 	user, err := repository.GetUser(collection, username)
 	if err != nil {

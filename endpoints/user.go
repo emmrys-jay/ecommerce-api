@@ -9,13 +9,14 @@ import (
 func InitializeUserEndpoints(db *mongo.Database, e *gin.Engine, mdw gin.HandlerFunc) {
 	userController := controller.NewUserController(db)
 
-	users := e.Group("/users")
+	user := e.Group("/user")
 	{
-		users.POST("/create", userController.CreateUser)
-		users.POST("/login", userController.LoginUser)
-		users.GET("/get/:username", mdw, userController.GetUser)
-		users.PUT("/password", mdw, userController.ChangePassword)
-		users.PUT("/update", mdw, userController.UpdateUserFlexible)
-		users.PUT("/location/add", mdw, userController.AddLocation)
+		user.POST("/create", userController.CreateUser)
+		user.POST("/login", userController.LoginUser)
+		// user.POST("/logout", userController.LogoutUser)
+		user.GET("/get", mdw, userController.GetUser)
+		user.PUT("/password", mdw, userController.ChangePassword)
+		user.PUT("/update", mdw, userController.UpdateUserFlexible)
+		user.PUT("/location/add", mdw, userController.AddLocation)
 	}
 }

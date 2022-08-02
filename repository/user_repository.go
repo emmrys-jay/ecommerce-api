@@ -8,6 +8,7 @@ import (
 	"github.com/Emmrys-Jay/ecommerce-api/entity"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func CreateUser(collection *mongo.Collection, user entity.User) (*mongo.InsertOneResult, error) {
@@ -36,15 +37,22 @@ func GetUser(collection *mongo.Collection, username string) (*entity.User, error
 	return user, err
 }
 
-func GetAllUsers(collection *mongo.Collection) ([]entity.User, error) {
+func GetAllUsers(collection *mongo.Collection, limit, offset int) ([]entity.User, int64, error) {
 	ctx := context.Background()
 	var user = entity.User{}
-	var users []entity.User
+	var users = []entity.User{}
 	filter := bson.M{}
 
-	cursor, err := collection.Find(ctx, filter)
+	length, err := collection.CountDocuments(ctx, filter)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
+	}
+
+	options := options.Find().SetSkip(int64(offset)).SetLimit(int64(limit))
+
+	cursor, err := collection.Find(ctx, filter, options)
+	if err != nil {
+		return nil, -1, err
 	}
 
 	for cursor.Next(ctx) {
@@ -52,7 +60,7 @@ func GetAllUsers(collection *mongo.Collection) ([]entity.User, error) {
 		users = append(users, user)
 	}
 
-	return users, nil
+	return users, length, nil
 }
 
 func DeleteUser(collection *mongo.Collection, username string) (*mongo.DeleteResult, error) {
@@ -107,6 +115,7 @@ func UpdateUserFlexible(collection *mongo.Collection, username, detail, update, 
 	case "email":
 		user.Email = update
 	case "mobile_number":
+		// Validate mobile number
 		user.MobileNumber = update
 	case "default_payment_method":
 		user.DefaultPaymentMethod = update
@@ -142,7 +151,7 @@ func AddLocation(collection *mongo.Collection, username string, location entity.
 	return &location, err
 }
 
-func AddOrderToUser(collection *mongo.Collection, username string, order *entity.Order) (*mongo.UpdateResult, error) {
+func AddOrderToUser(collection *mongo.Collection, username string, order entity.Order) (*mongo.UpdateResult, error) {
 	ctx := context.Background()
 
 	filter := bson.M{"username": username}
@@ -152,7 +161,7 @@ func AddOrderToUser(collection *mongo.Collection, username string, order *entity
 		return nil, err
 	}
 
-	user.Orders = append(user.Orders, *order)
+	user.Orders = append(user.Orders, order)
 	user.LastUpdated = time.Now()
 
 	result, err := collection.ReplaceOne(ctx, filter, user)

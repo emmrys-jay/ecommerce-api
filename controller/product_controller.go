@@ -70,14 +70,41 @@ func (u *UserController) FindProducts(ctx *gin.Context) {
 
 	NoOfPages := math.Ceil(float64(length) / float64(int(req.PageSize)))
 
-	result := FindProductsResult{
+	response := FindProductsResult{
 		PageID:        req.PageID,
 		ResultsFound:  int64(length),
 		NumberOfPages: int64(NoOfPages),
 		Data:          products,
 	}
 
-	ctx.JSON(http.StatusOK, result)
+	if response.NumberOfPages < 1 {
+		response.PageID = 0
+	}
+
+	ctx.JSON(http.StatusOK, response)
+}
+
+// FindOneProduct returns a single document with the specified ID
+func (u *UserController) FindOneProduct(ctx *gin.Context) {
+	collection := db.GetCollection(u.Database, "products")
+
+	productID := ctx.Param("productID")
+	if productID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "no url param specified"})
+		return
+	}
+
+	product, err := repository.FindOneProduct(collection, productID)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			ctx.JSON(http.StatusNotFound, util.ErrorResponse(err))
+			return
+		}
+		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, product)
 }
 
 /*
@@ -179,12 +206,16 @@ func (u *UserController) GetProductsByCategory(ctx *gin.Context) {
 
 	NoOfPages := math.Ceil(float64(length) / float64(int(pageSize)))
 
-	result := FindProductsResult{
+	response := FindProductsResult{
 		PageID:        int64(pageID),
 		ResultsFound:  int64(length),
 		NumberOfPages: int64(NoOfPages),
 		Data:          products,
 	}
 
-	ctx.JSON(http.StatusOK, result)
+	if response.NumberOfPages < 1 {
+		response.PageID = 0
+	}
+
+	ctx.JSON(http.StatusOK, response)
 }

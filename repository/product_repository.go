@@ -25,20 +25,20 @@ func InsertProducts(collection *mongo.Collection, data []entity.Product) (*mongo
 	return collection.InsertMany(context.Background(), ui)
 }
 
-func FindOneProduct(collection *mongo.Collection, name string) (entity.Product, error) {
+func FindOneProduct(collection *mongo.Collection, productID string) (*entity.Product, error) {
 	ctx := context.Background()
-	var product entity.Product
+	var product = entity.Product{}
 
-	filter := bson.M{"name": name}
+	filter := bson.M{"_id": productID}
 	err := collection.FindOne(ctx, filter).Decode(&product)
 	if err != nil {
-		return product, err
+		return nil, err
 	}
 
-	return product, nil
+	return &product, nil
 }
 
-func FindProducts(collection *mongo.Collection, name string, offset, limit int64) ([]entity.Product, error) {
+func FindProducts(collection *mongo.Collection, name string, offset, limit int64) ([]entity.Product, int64, error) {
 	ctx := context.Background()
 	filter := bson.M{}
 	findOptions := options.Find()
@@ -66,15 +66,17 @@ func FindProducts(collection *mongo.Collection, name string, offset, limit int64
 		}
 	}
 
-	findOptions.SetLimit(int64(limit))
-
-	if offset != 0 {
-		findOptions.SetSkip(offset)
+	length, err := collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, -1, err
 	}
+
+	findOptions.SetLimit(int64(limit))
+	findOptions.SetSkip(offset)
 
 	cursor, err := collection.Find(ctx, filter, findOptions)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 	defer cursor.Close(context.Background())
 
@@ -85,7 +87,7 @@ func FindProducts(collection *mongo.Collection, name string, offset, limit int64
 		products = append(products, product)
 	}
 
-	return products, nil
+	return products, length, nil
 }
 
 func DeleteProduct(collection *mongo.Collection, name string) (*mongo.DeleteResult, error) {
@@ -104,16 +106,16 @@ func DeleteAllProducts(collection *mongo.Collection) (*mongo.DeleteResult, error
 	return result, err
 }
 
-// UpdateProduct updates a product price and/or quantity
-func UpdateProduct(collection *mongo.Collection, name string, price float64, quantity int64) (*mongo.UpdateResult, error) {
+// UpdateProduct updates a product price/ quantity and orders
+func UpdateProduct(collection *mongo.Collection, id string, price float64, quantity int64, productOrders int64) (*mongo.UpdateResult, error) {
 	ctx := context.Background()
 
-	product, err := FindOneProduct(collection, name)
+	product, err := FindOneProduct(collection, id)
 	if err != nil {
 		return nil, err
 	}
 
-	filter := bson.M{"name": name}
+	filter := bson.M{"_id": id}
 
 	if price != 0 {
 		product.Price = price
@@ -125,15 +127,20 @@ func UpdateProduct(collection *mongo.Collection, name string, price float64, qua
 		product.LastUpdated = time.Now()
 	}
 
+	if productOrders != 0 {
+		product.NumOfOrders += productOrders
+		product.LastUpdated = time.Now()
+	}
+
 	result, err := collection.ReplaceOne(ctx, filter, product)
 
 	return result, err
 }
 
-func AddProductReview(collection *mongo.Collection, name string, review entity.Review) (*mongo.UpdateResult, error) {
+func AddProductReview(collection *mongo.Collection, productID string, review entity.Review) (*mongo.UpdateResult, error) {
 	ctx := context.Background()
 
-	product, err := FindOneProduct(collection, name)
+	product, err := FindOneProduct(collection, productID)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +149,7 @@ func AddProductReview(collection *mongo.Collection, name string, review entity.R
 	product.LastUpdated = time.Now()
 	product.Reviews = append(product.Reviews, review)
 
-	filter := bson.M{"name": name}
+	filter := bson.M{"_id": productID}
 
 	result, err := collection.ReplaceOne(ctx, filter, product)
 	if err != nil {
@@ -150,4 +157,37 @@ func AddProductReview(collection *mongo.Collection, name string, review entity.R
 	}
 
 	return result, nil
+}
+
+func GetProductsByCategory(collection *mongo.Collection, ctgy string, offset, limit int) ([]entity.Product, int64, error) {
+	ctx := context.Background()
+	var products = []entity.Product{}
+	var product entity.Product
+
+	filter := bson.M{"category": ctgy}
+
+	length, err := collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, -1, err
+	}
+
+	options := options.Find().SetLimit(int64(limit)).SetSkip(int64(offset))
+
+	cursor, err := collection.Find(ctx, filter, options)
+	if err != nil {
+		return nil, -1, err
+	}
+
+	defer cursor.Close(context.Background())
+
+	for cursor.Next(ctx) {
+		err := cursor.Decode(&product)
+		if err != nil {
+			return nil, -1, err
+		}
+
+		products = append(products, product)
+	}
+
+	return products, length, nil
 }
