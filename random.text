@@ -7,3 +7,171 @@ db.createUser(
 )
 
 
+package controller
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/Emmrys-Jay/ecommerce-api/endpoints"
+	"github.com/Emmrys-Jay/ecommerce-api/entity"
+	"github.com/Emmrys-Jay/ecommerce-api/middleware"
+	"github.com/Emmrys-Jay/ecommerce-api/util"
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"golang.org/x/crypto/bcrypt"
+)
+
+var server = gin.Default()
+
+func hashPassword(password string) string {
+	hp, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatalln("Could not hash password")
+	}
+
+	return string(hp)
+}
+
+func initializeUserRoutes(database *mongo.Database) {
+	mdw := middleware.AuthorizeJWT()
+	endpoints.InitializeUserEndpoints(database, server, mdw)
+}
+
+func connectDB() *mongo.Database {
+	ctx := context.Background()
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+	if err != nil {
+		log.Fatalln("could not connect to server: ", err)
+	}
+
+	if err = client.Ping(ctx, readpref.Primary()); err != nil {
+		log.Fatalln("could not ping server: ", err)
+	}
+
+	return client.Database("ecommerce_test")
+}
+
+func configureDbCollections(db *mongo.Database) error {
+	collection := db.Collection("users")
+
+	options := options.Index()
+	options.SetUnique(true)
+
+	_, err := collection.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys:    bson.M{"username": 1},
+		Options: options,
+	})
+	return err
+}
+
+func deleteUsers(database *mongo.Database) error {
+	c := database.Collection("users")
+	_, err := c.DeleteMany(context.Background(), bson.M{})
+	return err
+}
+
+func TestCreateUser(t *testing.T) {
+	database := connectDB()
+	err := configureDbCollections(database)
+	require.NoError(t, err)
+	initializeUserRoutes(database)
+
+	godotenv.Load("../load.env")
+
+	username := util.RandomString()
+	user := entity.User{
+		Username:       username,
+		Fullname:       "Thompson" + username,
+		HashedPassword: hashPassword("101" + username),
+		Email:          username + "@email.com",
+	}
+
+	userJson, _ := json.Marshal(user)
+	req, err := http.NewRequest("POST", "/user/create", bytes.NewBuffer(userJson))
+	if err != nil {
+		log.Fatalln("Could not create request")
+	}
+
+	recorder := httptest.NewRecorder()
+	server.ServeHTTP(recorder, req)
+
+	var expectedBody = struct {
+		ID             string    `json:"_id"`
+		Username       string    `json:"username"`
+		Fullname       string    `json:"fullname"`
+		Email          string    `json:"email"`
+		EmailIsVerfied bool      `json:"email_is_verified"`
+		MobileNumber   string    `json:"mobile_number,omitempty"`
+		CreatedAt      time.Time `json:"created_at"`
+	}{}
+
+	err = json.Unmarshal(recorder.Body.Bytes(), &expectedBody)
+	require.NoError(t, err)
+	require.Equal(t, "", expectedBody.MobileNumber)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.NotZero(t, expectedBody.ID)
+	require.Equal(t, user.Username, expectedBody.Username)
+	require.Equal(t, user.Fullname, expectedBody.Fullname)
+	require.Equal(t, user.Email, expectedBody.Email)
+	require.Equal(t, false, expectedBody.EmailIsVerfied)
+	require.True(t, expectedBody.CreatedAt.Before(time.Now()))
+
+	err = deleteUsers(database)
+	require.NoError(t, err)
+}
+
+func TestUniqueUsernameField(t *testing.T) {
+	database := connectDB()
+	err := configureDbCollections(database)
+	require.NoError(t, err)
+	initializeUserRoutes(database)
+
+	gin.SetMode(gin.TestMode)
+
+	godotenv.Load("../load.env")
+
+	username := util.RandomString()
+	user := entity.User{
+		Username:       username,
+		Fullname:       "Thompson " + username,
+		HashedPassword: hashPassword("101" + username),
+		Email:          username + "@email.com",
+	}
+
+	userJson, _ := json.Marshal(user)
+	req, err := http.NewRequest("POST", "/user/create", bytes.NewBuffer(userJson))
+	if err != nil {
+		log.Fatalln("Could not create request")
+	}
+
+	recorder := httptest.NewRecorder()
+
+	server.ServeHTTP(recorder, req)
+	require.Equal(t, 200, recorder.Code)
+
+	server.ServeHTTP(recorder, req)
+	require.Equal(t, 400, recorder.Code)
+
+	err = deleteUsers(database)
+	require.Error(t, err)
+}
+
+func TestLoginUser(t *testing.T) {
+	//database := connectDB()
+
+	godotenv.Load("../load.env")
+
+}
