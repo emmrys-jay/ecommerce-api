@@ -21,17 +21,20 @@ func ConfigDB() *mongo.Database {
 	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
 	if err != nil {
-		log.Fatalln("could not connect to server: ", err)
+		log.Fatalln("mongo.Connect(ctx, options.Client().ApplyURI() ERROR: ", err)
 	}
 
 	if err = client.Ping(ctx, readpref.Primary()); err != nil {
-		log.Fatalln("could not ping server: ", err)
+		log.Fatalln("client.Ping(ctx, readpref.Primary()) ERROR: ", err)
 	}
 
 	fmt.Println("You connected to your mongo database.")
 
 	db := client.Database("ecommerce")
-	ConfigDBCollections(db)
+	err = ConfigDBCollections(db)
+	if err != nil {
+		log.Fatalln("ConfigDBCOllections() ERROR: ", err)
+	}
 
 	return db
 }
@@ -40,29 +43,47 @@ func GetCollection(db *mongo.Database, collection string) *mongo.Collection {
 	return db.Collection(collection)
 }
 
-func ConfigDBCollections(db *mongo.Database) {
+func ConfigDBCollections(db *mongo.Database) error {
 	collection := GetCollection(db, "users")
 	ctx := context.Background()
 
-	options := options.Index()
-	options.SetUnique(true)
+	_, err := collection.Indexes().CreateMany(ctx,
+		[]mongo.IndexModel{
+			{
+				Keys:    bson.D{{Key: "username", Value: 1}},
+				Options: options.Index().SetName("username_index").SetUnique(true),
+			},
+			{
+				Keys:    bson.D{{Key: "email", Value: 1}},
+				Options: options.Index().SetName("email_index").SetUnique(true),
+			},
+			{
+				Keys:    bson.D{{Key: "mobile_number", Value: 1}},
+				Options: options.Index().SetName("mobile_number_index").SetUnique(true),
+			},
+		})
 
-	collection.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    bson.D{{Key: "username", Value: "1"}, {Key: "email", Value: "1"}, {Key: "mobile_number", Value: "1"}},
-		Options: options,
-	})
+	if err != nil {
+		return err
+	}
 
 	collection = GetCollection(db, "products")
 
-	collection.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    bson.D{{Key: "name", Value: "1"}},
-		Options: options,
+	_, err = collection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "name", Value: 1}},
+		Options: options.Index().SetName("name_index").SetUnique(true),
 	})
 
-	// collection = GetCollection(db, "cart")
+	if err != nil {
+		return err
+	}
 
-	// collection.Indexes().CreateOne(ctx, mongo.IndexModel{
-	// 	Keys:    bson.D{{Key: "product_name", Value: "1"}},
-	// 	Options: options,
-	// })
+	collection = GetCollection(db, "cart")
+
+	_, err = collection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "product_name", Value: 1}},
+		Options: options.Index().SetName("product_name_index").SetUnique(true),
+	})
+
+	return err
 }
