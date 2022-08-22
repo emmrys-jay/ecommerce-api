@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -41,7 +40,7 @@ func deleteUsers(database *mongo.Database) error {
 	return err
 }
 
-func initializeCreateUserRoutes(ed *ServerDB) {
+func initializeUserRoutes(ed *ServerDB) {
 	userController := NewUserController(ed.Db)
 
 	user := ed.Server.Group("/user")
@@ -66,7 +65,6 @@ func dropDatabase(d *mongo.Database) error {
 }
 
 func createUserTest(t *testing.T, details *ServerDB, username string) UserResponse {
-	initializeCreateUserRoutes(details)
 	godotenv.Load("../load.env")
 	user := entity.User{
 		Username:       username,
@@ -107,6 +105,7 @@ func TestCreateUser(t *testing.T) {
 		Db:     connectDB(),
 		Server: gin.Default(),
 	}
+	initializeUserRoutes(&details)
 
 	createUserTest(t, &details, "Harry")
 	assert.NoError(t, deleteUsers(details.Db))
@@ -140,8 +139,8 @@ func TestUniqueUserFields(t *testing.T) {
 		Db:     connectDB(),
 		Server: gin.Default(),
 	}
+	initializeUserRoutes(&details)
 
-	initializeCreateUserRoutes(&details)
 	configureDbCollections(details.Db)
 	godotenv.Load("../load.env")
 
@@ -218,8 +217,8 @@ func loginUserTest(t *testing.T, details *ServerDB, username string, triggers ..
 
 	if len(triggers) > 1 {
 		if triggers[1] == "unauthorised" {
-			require.Equal(t, 401, recorder.Code)
-			require.NotZero(t, recorder.Body.String)
+			assert.Equal(t, 401, recorder.Code)
+			assert.NotZero(t, recorder.Body.String)
 		}
 	} else {
 		err = json.Unmarshal(recorder.Body.Bytes(), &expectedBody)
@@ -244,6 +243,7 @@ func TestLoginUser(t *testing.T) {
 		Db:     connectDB(),
 		Server: gin.Default(),
 	}
+	initializeUserRoutes(&details)
 
 	username := "Harry"
 	createUserTest(t, &details, username)
@@ -255,15 +255,7 @@ func TestLoginUser(t *testing.T) {
 	assert.NoError(t, dropDatabase(details.Db))
 }
 
-func TestGetUser(t *testing.T) {
-	details := ServerDB{
-		Db:     connectDB(),
-		Server: gin.Default(),
-	}
-
-	username := "Harry"
-	user := createUserTest(t, &details, username)
-
+func getUserTest(t *testing.T, details *ServerDB, user UserResponse) GetUserResponse {
 	req, _ := http.NewRequest("GET", "/user/get", nil)
 	req.Header.Add("Authorization", "Bearer "+user.Token)
 
@@ -272,18 +264,33 @@ func TestGetUser(t *testing.T) {
 
 	var gUser = GetUserResponse{}
 	err := json.Unmarshal(recorder.Body.Bytes(), &gUser)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
-	require.Equal(t, 200, recorder.Code)
+	assert.Equal(t, 200, recorder.Code)
 
-	require.Equal(t, user.Username, gUser.Username)
-	require.Equal(t, user.Fullname, gUser.Fullname)
-	require.Equal(t, user.Email, gUser.Email)
-	require.Equal(t, user.ID, gUser.ID)
-	require.Equal(t, user.MobileNumber, gUser.MobileNumber)
+	assert.Equal(t, user.Username, gUser.Username)
+	assert.Equal(t, user.Fullname, gUser.Fullname)
+	assert.Equal(t, user.Email, gUser.Email)
+	assert.Equal(t, user.ID, gUser.ID)
+	assert.Equal(t, user.MobileNumber, gUser.MobileNumber)
 
-	require.NoError(t, deleteUsers(details.Db))
-	require.NoError(t, dropDatabase(details.Db))
+	return gUser
+}
+
+func TestGetUser(t *testing.T) {
+	details := ServerDB{
+		Db:     connectDB(),
+		Server: gin.Default(),
+	}
+	initializeUserRoutes(&details)
+
+	username := "Harry"
+	user := createUserTest(t, &details, username)
+
+	_ = getUserTest(t, &details, user)
+
+	assert.NoError(t, deleteUsers(details.Db))
+	assert.NoError(t, dropDatabase(details.Db))
 }
 
 func TestChangePassword(t *testing.T) {
@@ -291,6 +298,7 @@ func TestChangePassword(t *testing.T) {
 		Db:     connectDB(),
 		Server: gin.Default(),
 	}
+	initializeUserRoutes(&details)
 
 	username := "Harry"
 	user := createUserTest(t, &details, username)
@@ -306,22 +314,197 @@ func TestChangePassword(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	details.Server.ServeHTTP(recorder, req)
-	require.Equal(t, 200, recorder.Code)
-	require.NotEqual(t, "404 page not found", recorder.Body.String())
+	assert.Equal(t, 200, recorder.Code)
+	assert.NotEqual(t, "404 page not found", recorder.Body.String())
 
 	token := loginUserTest(t, &details, username, "", "unauthorised")
-	require.Empty(t, token)
+	assert.Empty(t, token)
 
 	token = loginUserTest(t, &details, username, "reversed")
-	require.NotEmpty(t, token)
+	assert.NotEmpty(t, token)
 
-	require.NoError(t, deleteUsers(details.Db))
-	require.NoError(t, dropDatabase(details.Db))
+	assert.NoError(t, deleteUsers(details.Db))
+	assert.NoError(t, dropDatabase(details.Db))
+}
+
+func updateUserTest(t *testing.T, details *ServerDB, token string, updateDetail string, user GetUserResponse) {
+	uReq := UpdateUserRequest{}
+
+	switch updateDetail {
+	case "username":
+		uReq = UpdateUserRequest{
+			Detail: updateDetail,
+			Update: "NewUsername",
+		}
+	case "profile_picture":
+		uReq = UpdateUserRequest{
+			Detail: updateDetail,
+			Update: "NewProfilePicture",
+		}
+	case "email":
+		uReq = UpdateUserRequest{
+			Detail: updateDetail,
+			Update: "NewEmail",
+		}
+	case "mobile_number":
+		uReq = UpdateUserRequest{
+			Detail: updateDetail,
+			Update: "NewMobileNumber",
+		}
+	case "default_payment_method":
+		uReq = UpdateUserRequest{
+			Detail: updateDetail,
+			Update: "NewMobileNumber",
+		}
+	}
+
+	cpReqJson, _ := json.Marshal(uReq)
+	req, _ := http.NewRequest("PUT", "/user/update", bytes.NewBuffer(cpReqJson))
+	req.Header.Add("Authorization", "Bearer "+token)
+
+	recorder := httptest.NewRecorder()
+	details.Server.ServeHTTP(recorder, req)
+	assert.Equal(t, 200, recorder.Code)
+	assert.NotEqual(t, "404 page not found", recorder.Body.String())
+
+	req, _ = http.NewRequest("GET", "/user/get", nil)
+	req.Header.Add("Authorization", "Bearer "+token)
+
+	recorder = httptest.NewRecorder()
+	details.Server.ServeHTTP(recorder, req)
+	assert.Equal(t, 200, recorder.Code)
+	assert.NotEqual(t, "404 page not found", recorder.Body.String())
+
+	var updatedUser = GetUserResponse{}
+	err := json.Unmarshal(recorder.Body.Bytes(), &updatedUser)
+	assert.NoError(t, err)
+
+	switch updateDetail {
+	case "username":
+		assert.NotEqual(t, user.Username, updatedUser.Username)
+	case "profile_picture":
+		assert.NotEqual(t, user.ProfilePicture, updatedUser.ProfilePicture)
+	case "email":
+		assert.NotEqual(t, user.Email, updatedUser.Email)
+	case "mobile_number":
+		assert.NotEqual(t, user.MobileNumber, updatedUser.MobileNumber)
+	case "default_payment_method":
+		assert.NotEqual(t, user.DefaultPaymentMethod, updatedUser.DefaultPaymentMethod)
+	}
+
+	assert.True(t, updatedUser.LastUpdated.After(user.LastUpdated))
 }
 
 func TestUpdateUserFlexible(t *testing.T) {
-	// details := ServerDB{
-	// 	Db:     connectDB(),
-	// 	Server: gin.Default(),
-	// }
+	details := ServerDB{
+		Db:     connectDB(),
+		Server: gin.Default(),
+	}
+	initializeUserRoutes(&details)
+
+	username := "Harry"
+	user := createUserTest(t, &details, username)
+
+	gUser := getUserTest(t, &details, user)
+
+	// test updated profile picture
+	updateUserTest(t, &details, user.Token, "profile_picture", gUser)
+
+	// test updated default payment method
+	updateUserTest(t, &details, user.Token, "default_payment_method", gUser)
+
+	// test updated email
+	updateUserTest(t, &details, user.Token, "email", gUser)
+
+	// test updated mobile number
+	updateUserTest(t, &details, user.Token, "mobile_number", gUser)
+
+	// test updated username
+	updateUserTest(t, &details, user.Token, "username", gUser)
+
+	assert.NoError(t, deleteUsers(details.Db))
+	assert.NoError(t, dropDatabase(details.Db))
+}
+
+func addLocationTest(t *testing.T, details *ServerDB, user UserResponse, location entity.Location, triggers ...string) {
+	lreq := AddLocationRequest{
+		Location: location,
+	}
+
+	lreqJson, err := json.Marshal(lreq)
+	assert.NoError(t, err)
+
+	req, _ := http.NewRequest("PUT", "/user/location/add", bytes.NewBuffer(lreqJson))
+	req.Header.Add("Authorization", "Bearer "+user.Token)
+
+	recorder := httptest.NewRecorder()
+	details.Server.ServeHTTP(recorder, req)
+	assert.Equal(t, 200, recorder.Code)
+
+	updatedUser := getUserTest(t, details, user)
+
+	if len(triggers) > 0 {
+		if triggers[0] == "second_location" {
+			assert.NotEqual(t, location, updatedUser.DefaultDeliveryLocation)
+			assert.NotEqual(t, location, updatedUser.RegisteredLocations[0])
+			assert.Equal(t, location, updatedUser.RegisteredLocations[1])
+			assert.Equal(t, location.HouseNumber, updatedUser.RegisteredLocations[1].HouseNumber)
+			assert.Equal(t, location.PhoneNo, updatedUser.RegisteredLocations[1].PhoneNo)
+			assert.Equal(t, location.Street, updatedUser.RegisteredLocations[1].Street)
+			assert.Equal(t, location.CityOrTown, updatedUser.RegisteredLocations[1].CityOrTown)
+			assert.Equal(t, location.State, updatedUser.RegisteredLocations[1].State)
+			assert.Equal(t, location.Country, updatedUser.RegisteredLocations[1].Country)
+			assert.Equal(t, location.ZipCode, updatedUser.RegisteredLocations[1].ZipCode)
+		}
+	} else {
+		assert.NotEmpty(t, updatedUser.RegisteredLocations)
+		assert.Equal(t, location, updatedUser.RegisteredLocations[0])
+		assert.Equal(t, location, updatedUser.DefaultDeliveryLocation)
+		assert.Equal(t, location.HouseNumber, updatedUser.RegisteredLocations[0].HouseNumber)
+		assert.Equal(t, location.PhoneNo, updatedUser.RegisteredLocations[0].PhoneNo)
+		assert.Equal(t, location.Street, updatedUser.RegisteredLocations[0].Street)
+		assert.Equal(t, location.CityOrTown, updatedUser.RegisteredLocations[0].CityOrTown)
+		assert.Equal(t, location.State, updatedUser.RegisteredLocations[0].State)
+		assert.Equal(t, location.Country, updatedUser.RegisteredLocations[0].Country)
+		assert.Equal(t, location.ZipCode, updatedUser.RegisteredLocations[0].ZipCode)
+	}
+}
+
+func TestAddLocation(t *testing.T) {
+	details := ServerDB{
+		Db:     connectDB(),
+		Server: gin.Default(),
+	}
+	initializeUserRoutes(&details)
+
+	username := "Harry"
+	user := createUserTest(t, &details, username)
+
+	location := entity.Location{
+		HouseNumber: "88a",
+		PhoneNo:     "+2346",
+		Street:      "Adelaide",
+		CityOrTown:  "Right City",
+		State:       "Rely land",
+		Country:     "Moa",
+		ZipCode:     "2377809",
+	}
+
+	// Test for first added location being also assigned default location
+	addLocationTest(t, &details, user, location)
+
+	location = entity.Location{
+		HouseNumber: "50",
+		PhoneNo:     "+2346446",
+		Street:      "Mawuli",
+		CityOrTown:  "Left City",
+		State:       "Sroboth",
+		Country:     "Land",
+	}
+
+	// Test for a second location
+	addLocationTest(t, &details, user, location, "second_location")
+
+	assert.NoError(t, deleteUsers(details.Db))
+	assert.NoError(t, dropDatabase(details.Db))
 }
