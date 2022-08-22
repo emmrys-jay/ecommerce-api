@@ -41,7 +41,7 @@ func main() {
 	_, err = repository.GetUser(db.GetCollection(database, "users"), adminUsername)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			err := createAdminUserMain(database, adminUsername, adminPassword)
+			err := createAdminUser(database, adminUsername, adminPassword)
 			if err != nil {
 				log.Fatalln("could not create admin user")
 			}
@@ -74,9 +74,9 @@ func main() {
 
 }
 
-func createAdminUserMain(database *mongo.Database, adminUsername, adminPassword string) error {
+func createAdminUser(database *mongo.Database, adminUsername, adminPassword string) error {
 	admin := entity.User{
-		ID:             primitive.NewObjectID().String(),
+		ID:             primitive.NewObjectID().String()[10:34],
 		Username:       adminUsername,
 		PasswordSalt:   "ADMIN",
 		HashedPassword: adminPassword,
