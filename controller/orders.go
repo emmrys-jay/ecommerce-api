@@ -32,7 +32,7 @@ func (u *UserController) OrderProduct(ctx *gin.Context) {
 		return
 	}
 
-	username, err := util.UsernameFromToken(ctx)
+	user, err := util.UserFromToken(ctx, collection)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
 		return
@@ -42,7 +42,8 @@ func (u *UserController) OrderProduct(ctx *gin.Context) {
 		collection,
 		req.Location,
 		req.Quantity,
-		username,
+		user.Username,
+		user.ID,
 		req.Fullname,
 		req.ProductID,
 		req.PaymentMethod,
@@ -194,7 +195,7 @@ func (u *UserController) OrderAllCartItems(ctx *gin.Context) {
 		return
 	}
 
-	username, err := util.UsernameFromToken(ctx)
+	user, err := util.UserFromToken(ctx, collection)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
 		return
@@ -202,7 +203,8 @@ func (u *UserController) OrderAllCartItems(ctx *gin.Context) {
 
 	numProductsOrdered, namesProductsOrdered, err := repository.OrderAllCartItems(
 		collection,
-		username,
+		user.Username,
+		user.ID,
 		req.Fullname,
 		req.PaymentMethod,
 		req.Location,

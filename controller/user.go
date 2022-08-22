@@ -65,7 +65,7 @@ func (u *UserController) CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	storedUser, err := repository.GetUser(collection, user.Username)
+	storedUser, err := repository.GetUser(collection, user.ID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
@@ -178,13 +178,13 @@ type GetUserResponse struct {
 func (u *UserController) GetUser(ctx *gin.Context) {
 	collection := db.GetCollection(u.Database, "users")
 
-	username, err := util.UsernameFromToken(ctx)
+	userID, err := util.UserIDFromToken(ctx)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
 		return
 	}
 
-	user, err := repository.GetUser(collection, username)
+	user, err := repository.GetUser(collection, userID)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			ctx.JSON(http.StatusNotFound, err)
@@ -231,13 +231,13 @@ func (u *UserController) ChangePassword(ctx *gin.Context) {
 		return
 	}
 
-	username, err := util.UsernameFromToken(ctx)
+	userID, err := util.UserIDFromToken(ctx)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
 		return
 	}
 
-	user, err := repository.GetUser(collection, username)
+	user, err := repository.GetUser(collection, userID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
@@ -260,7 +260,7 @@ func (u *UserController) ChangePassword(ctx *gin.Context) {
 		return
 	}
 
-	err = repository.UpdateUserFlexible(collection, username, "password", newHashPassword, newPasswordSalt)
+	err = repository.UpdateUserFlexible(collection, user.Username, "password", newHashPassword, newPasswordSalt)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
@@ -343,13 +343,13 @@ func (u *UserController) AddLocation(ctx *gin.Context) {
 		return
 	}
 
-	username, err := util.UsernameFromToken(ctx)
+	userID, err := util.UserIDFromToken(ctx)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
 		return
 	}
 
-	location, err := repository.AddLocation(collection, username, req.Location)
+	location, err := repository.AddLocation(collection, userID, req.Location)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return

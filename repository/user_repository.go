@@ -22,10 +22,10 @@ func CreateUser(collection *mongo.Collection, user entity.User) (*mongo.InsertOn
 	return result, nil
 }
 
-func GetUser(collection *mongo.Collection, username string) (*entity.User, error) {
+func GetUser(collection *mongo.Collection, userID string) (*entity.User, error) {
 	ctx := context.Background()
 	var user = &entity.User{}
-	filter := bson.M{"username": username}
+	filter := bson.M{"_id": userID}
 
 	result := collection.FindOne(ctx, filter)
 	if result.Err() != nil {
@@ -130,11 +130,11 @@ func UpdateUserFlexible(collection *mongo.Collection, username, detail, update, 
 	return err
 }
 
-func AddLocation(collection *mongo.Collection, username string, location entity.Location) (*entity.Location, error) {
+func AddLocation(collection *mongo.Collection, userID string, location entity.Location) (*entity.Location, error) {
 	ctx := context.Background()
 
-	filter := bson.M{"username": username}
-	user, err := GetUser(collection, username)
+	filter := bson.M{"_id": userID}
+	user, err := GetUser(collection, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -151,12 +151,12 @@ func AddLocation(collection *mongo.Collection, username string, location entity.
 	return &location, err
 }
 
-func AddOrderToUser(collection *mongo.Collection, username string, order entity.Order) (*mongo.UpdateResult, error) {
+func AddOrderToUser(collection *mongo.Collection, userID string, order entity.Order) (*mongo.UpdateResult, error) {
 	ctx := context.Background()
 
-	filter := bson.M{"username": username}
+	filter := bson.M{"_id": userID}
 
-	user, err := GetUser(collection, username)
+	user, err := GetUser(collection, userID)
 	if err != nil {
 		return nil, err
 	}

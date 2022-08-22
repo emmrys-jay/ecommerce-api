@@ -14,7 +14,7 @@ import (
 
 func OrderProductDirectly(
 	collection *mongo.Collection, location entity.Location, quantity int,
-	username, fullname, productID, paymentMethod string) (*mongo.InsertOneResult, string, error) {
+	username, userID, fullname, productID, paymentMethod string) (*mongo.InsertOneResult, string, error) {
 
 	ctx := context.Background()
 
@@ -50,7 +50,7 @@ func OrderProductDirectly(
 	usersCollection := db.GetCollection(collection.Database(), "users")
 
 	// Add order to the orders in the user collection
-	_, err = AddOrderToUser(usersCollection, username, order)
+	_, err = AddOrderToUser(usersCollection, userID, order)
 	if err != nil {
 		return nil, "", err
 	}
@@ -245,7 +245,7 @@ func ReceiveOrder(collection *mongo.Collection, username, orderID string) (*mong
 }
 
 func OrderAllCartItems(collection *mongo.Collection,
-	username string, fullname, paymentMethod string,
+	username, userID, fullname, paymentMethod string,
 	location entity.Location) (int, string, error) {
 
 	cartCollection := db.GetCollection(collection.Database(), "cart")
@@ -257,7 +257,7 @@ func OrderAllCartItems(collection *mongo.Collection,
 
 	productNamesString := ""
 	for _, val := range cartItems {
-		_, name, err := OrderProductDirectly(collection, location, int(val.Quantity), username, fullname, val.Product.ID, paymentMethod)
+		_, name, err := OrderProductDirectly(collection, location, int(val.Quantity), username, userID, fullname, val.Product.ID, paymentMethod)
 		if err != nil {
 			return 0, "", err
 		}
