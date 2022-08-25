@@ -6,9 +6,9 @@ An API you can seamlessly use to solve your e-marketing hurdles
 ```mongodb```
 
 <ul>
-    <li> Ensure golang 1.17 or higher is installed
+    <li> Ensure `golang 1.17` or higher is installed
     <li> Download mongodb and ensure mongo is running in background
-    <li> Create a "load.env" file in your root directory and specify the following listed below
+    <li> Create a "load.env" file in your root directory and specify the following environmental variables:
 </ul>
 
 ```bash
