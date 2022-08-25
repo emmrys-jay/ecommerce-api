@@ -22,11 +22,12 @@ func AddToCart(collection *mongo.Collection, quantity int64, productID, username
 	}
 
 	item := entity.CartItem{
-		ID:        primitive.NewObjectIDFromTimestamp(time.Now()).String()[10:34],
-		Username:  username,
-		Quantity:  quantity,
-		DateAdded: time.Now(),
-		Product:   *product,
+		ID:          primitive.NewObjectIDFromTimestamp(time.Now()).String()[10:34],
+		ProductName: product.Name,
+		Username:    username,
+		Quantity:    quantity,
+		DateAdded:   time.Now(),
+		Product:     *product,
 	}
 
 	result, err := collection.InsertOne(ctx, item)

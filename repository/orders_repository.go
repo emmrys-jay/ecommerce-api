@@ -14,7 +14,7 @@ import (
 
 func OrderProductDirectly(
 	collection *mongo.Collection, location entity.Location, quantity int,
-	username, userID, fullname, productID, paymentMethod string) (*mongo.InsertOneResult, string, error) {
+	username, userID, fullname, productID, paymentMethod, orderID string) (*mongo.InsertOneResult, string, error) {
 
 	ctx := context.Background()
 
@@ -26,7 +26,7 @@ func OrderProductDirectly(
 	}
 
 	order := entity.Order{
-		ID:               primitive.NewObjectIDFromTimestamp(time.Now()).String()[10:34],
+		ID:               orderID,
 		Username:         username,
 		FullName:         fullname,
 		DeliveryLocation: location,
@@ -34,6 +34,10 @@ func OrderProductDirectly(
 		ProductQuantity:  quantity,
 		IsDelivered:      false,
 		CreatedAt:        time.Now(),
+	}
+
+	if orderID == "" {
+		order.ID = primitive.NewObjectIDFromTimestamp(time.Now()).String()[10:34]
 	}
 
 	result, err := collection.InsertOne(ctx, order)
@@ -257,7 +261,7 @@ func OrderAllCartItems(collection *mongo.Collection,
 
 	productNamesString := ""
 	for _, val := range cartItems {
-		_, name, err := OrderProductDirectly(collection, location, int(val.Quantity), username, userID, fullname, val.Product.ID, paymentMethod)
+		_, name, err := OrderProductDirectly(collection, location, int(val.Quantity), username, userID, fullname, val.Product.ID, paymentMethod, "")
 		if err != nil {
 			return 0, "", err
 		}
