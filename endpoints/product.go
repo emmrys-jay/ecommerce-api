@@ -16,7 +16,7 @@ func InitializeProductEndpoints(db *mongo.Database, e *gin.Engine, mdw gin.Handl
 		products.GET("/findone/:productID", userController.FindOneProduct)
 		// products.GET("/find/recent", userController.FindProductsWithTime)
 		// products.GET("/find/star", userController.FindProductsBasedOnReviews)
-		products.PUT("/:productID/addreview", userController.AddReview)
+		products.PUT("/:productID/addreview", mdw, userController.AddReview)
 		// products.GET("/categories", getAllCategories)
 	}
 }
