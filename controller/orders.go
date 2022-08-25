@@ -5,21 +5,27 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/Emmrys-Jay/ecommerce-api/db"
 	"github.com/Emmrys-Jay/ecommerce-api/entity"
 	"github.com/Emmrys-Jay/ecommerce-api/repository"
 	"github.com/Emmrys-Jay/ecommerce-api/util"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type OrderProductRequest struct {
 	Fullname      string          `json:"fullname" binding:"required"`
-	ProductID     string          `json:"product_id" binding:"required"`
 	Quantity      int             `json:"quantity" binding:"required"`
 	Location      entity.Location `json:"location" binding:"required"`
 	PaymentMethod string          `json:"payment_method" binding:"required"`
+}
+
+type OrderProductResult struct {
+	Response string `json:"response"`
+	OrderID  string `json:"order-id"`
 }
 
 // OrderProduct serves an order-a-product request from a user directly
@@ -27,17 +33,24 @@ func (u *UserController) OrderProduct(ctx *gin.Context) {
 	collection := db.GetCollection(u.Database, "orders")
 	var req OrderProductRequest
 
+	productID := ctx.Param("productID")
+	if productID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid param - product not specified"})
+		return
+	}
+
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
 		return
 	}
 
-	user, err := util.UserFromToken(ctx, collection)
+	user, err := util.UserFromToken(ctx, collection.Database())
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
+		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
 	}
 
+	orderID := primitive.NewObjectIDFromTimestamp(time.Now()).String()[10:34]
 	_, productName, err := repository.OrderProductDirectly(
 		collection,
 		req.Location,
@@ -45,20 +58,26 @@ func (u *UserController) OrderProduct(ctx *gin.Context) {
 		user.Username,
 		user.ID,
 		req.Fullname,
-		req.ProductID,
+		productID,
 		req.PaymentMethod,
+		orderID,
 	)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			ctx.JSON(http.StatusBadRequest, req.ProductID)
+			ctx.JSON(http.StatusBadRequest, productID)
 			return
 		}
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
 	}
 
-	response := fmt.Sprintf("you just bought %d product(s) with name - %s and id - %s", req.Quantity, productName, req.ProductID)
-	ctx.JSON(http.StatusOK, gin.H{"success": response})
+	response := fmt.Sprintf("you just bought %d product(s) with name - %s and id - %s", req.Quantity, productName, productID)
+	fResponse := OrderProductResult{
+		Response: response,
+		OrderID:  orderID,
+	}
+
+	ctx.JSON(http.StatusOK, fResponse)
 }
 
 type GetOrdersWithUsernameResult struct {
@@ -66,6 +85,29 @@ type GetOrdersWithUsernameResult struct {
 	ResultsFound  int            `json:"results_found"`
 	NumberOfPages int            `json:"no_of_pages"`
 	Data          []entity.Order `json:"data"`
+}
+
+//  GetOrder returns an order db entry
+func (u *UserController) GetOrder(ctx *gin.Context) {
+	collection := db.GetCollection(u.Database, "orders")
+
+	orderID := ctx.Param("order-ID")
+	if orderID == "" {
+		ctx.JSON(http.StatusBadRequest, "Invalid Param - order ID not specified")
+		return
+	}
+
+	order, err := repository.GetSingleOrder(collection, orderID)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "order specified does not exist"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, order)
 }
 
 // GetOrdersWithUsername gets orders associated with a username
@@ -195,7 +237,7 @@ func (u *UserController) OrderAllCartItems(ctx *gin.Context) {
 		return
 	}
 
-	user, err := util.UserFromToken(ctx, collection)
+	user, err := util.UserFromToken(ctx, collection.Database())
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
 		return

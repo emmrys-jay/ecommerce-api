@@ -90,7 +90,7 @@ type UpdateCartRequest struct {
 	Quantity int    `json:"quantity" form:"quantity,min=1"`
 }
 
-// DecrementCartQuantity substracts one from the quantity of a particular product stored in cart
+// UpdateCartQuantity changes the quantity of products stored in cart
 func (u *UserController) UpdateCartQuantity(ctx *gin.Context) {
 	collection := db.GetCollection(u.Database, "cart")
 	var req UpdateCartRequest

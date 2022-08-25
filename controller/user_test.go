@@ -34,8 +34,8 @@ func connectDB() *mongo.Database {
 	return client.Database("ecommerce_test")
 }
 
-func deleteUsers(database *mongo.Database) error {
-	c := database.Collection("users")
+func deleteRecords(database *mongo.Database, collection string) error {
+	c := database.Collection(collection)
 	_, err := c.DeleteMany(context.Background(), bson.M{})
 	return err
 }
@@ -108,7 +108,7 @@ func TestCreateUser(t *testing.T) {
 	initializeUserRoutes(&details)
 
 	createUserTest(t, &details, "Harry")
-	assert.NoError(t, deleteUsers(details.Db))
+	assert.NoError(t, deleteRecords(details.Db, "users"))
 	assert.NoError(t, dropDatabase(details.Db))
 }
 
@@ -188,7 +188,7 @@ func TestUniqueUserFields(t *testing.T) {
 	details.Server.ServeHTTP(recorder1, req)
 	assert.Equal(t, 200, recorder1.Code)
 
-	assert.NoError(t, deleteUsers(details.Db))
+	assert.NoError(t, deleteRecords(details.Db, "users"))
 	assert.NoError(t, dropDatabase(details.Db))
 }
 
@@ -251,7 +251,7 @@ func TestLoginUser(t *testing.T) {
 
 	assert.NotZero(t, token)
 
-	assert.NoError(t, deleteUsers(details.Db))
+	assert.NoError(t, deleteRecords(details.Db, "users"))
 	assert.NoError(t, dropDatabase(details.Db))
 }
 
@@ -289,7 +289,7 @@ func TestGetUser(t *testing.T) {
 
 	_ = getUserTest(t, &details, user)
 
-	assert.NoError(t, deleteUsers(details.Db))
+	assert.NoError(t, deleteRecords(details.Db, "users"))
 	assert.NoError(t, dropDatabase(details.Db))
 }
 
@@ -323,7 +323,7 @@ func TestChangePassword(t *testing.T) {
 	token = loginUserTest(t, &details, username, "reversed")
 	assert.NotEmpty(t, token)
 
-	assert.NoError(t, deleteUsers(details.Db))
+	assert.NoError(t, deleteRecords(details.Db, "users"))
 	assert.NoError(t, dropDatabase(details.Db))
 }
 
@@ -422,7 +422,7 @@ func TestUpdateUserFlexible(t *testing.T) {
 	// test updated username
 	updateUserTest(t, &details, user.Token, "username", gUser)
 
-	assert.NoError(t, deleteUsers(details.Db))
+	assert.NoError(t, deleteRecords(details.Db, "users"))
 	assert.NoError(t, dropDatabase(details.Db))
 }
 
@@ -505,6 +505,6 @@ func TestAddLocation(t *testing.T) {
 	// Test for a second location
 	addLocationTest(t, &details, user, location, "second_location")
 
-	assert.NoError(t, deleteUsers(details.Db))
+	assert.NoError(t, deleteRecords(details.Db, "users"))
 	assert.NoError(t, dropDatabase(details.Db))
 }

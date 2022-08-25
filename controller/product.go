@@ -84,7 +84,7 @@ func (u *UserController) FindProducts(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, response)
 }
 
-// FindOneProduct returns a single document with the specified ID
+// FindOneProduct returns a single product with the specified ID
 func (u *UserController) FindOneProduct(ctx *gin.Context) {
 	collection := db.GetCollection(u.Database, "products")
 
