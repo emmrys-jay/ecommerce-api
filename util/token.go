@@ -44,7 +44,7 @@ func UserIDFromToken(ctx *gin.Context) (string, error) {
 	return payload.ID, nil
 }
 
-func UserFromToken(ctx *gin.Context, collection *mongo.Collection) (*entity.User, error) {
+func UserFromToken(ctx *gin.Context, database *mongo.Database) (*entity.User, error) {
 	tokenMaker, err := auth.NewTokenMaker()
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func UserFromToken(ctx *gin.Context, collection *mongo.Collection) (*entity.User
 		return nil, err
 	}
 
-	user, err := repository.GetUser(collection, payload.ID)
+	user, err := repository.GetUser(database.Collection("users"), payload.ID)
 	if err != nil {
 		return nil, err
 	}
