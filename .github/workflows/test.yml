@@ -1,0 +1,23 @@
+name: Test CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup GO environment
+      uses: actions/setup-go@v3
+      
+    - name: Test handlers with Make
+      run: make test
+      
