@@ -4,4 +4,7 @@ mongo:
 run: 
 	go run main.go
 
-.PHONY: mongo run
+test:
+	go test ./controller -v --cover
+
+.PHONY: mongo run test
