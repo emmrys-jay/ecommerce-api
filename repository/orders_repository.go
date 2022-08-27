@@ -145,17 +145,10 @@ func GetAllOrders(collection *mongo.Collection, limit, offset int) ([]entity.Ord
 	return orders, length, nil
 }
 
-func DeliverOrder(collection *mongo.Collection, orderID, username string) (*mongo.UpdateResult, error) {
+func DeliverOrder(collection *mongo.Collection, orderID string) (*mongo.UpdateResult, error) {
 	ctx := context.Background()
 
-	filter := bson.M{"$and": []bson.M{
-		{
-			"_id": orderID,
-		},
-		{
-			"username": username,
-		},
-	}}
+	filter := bson.M{"_id": orderID}
 
 	order, err := GetSingleOrder(collection, orderID)
 	if err != nil {
@@ -174,7 +167,7 @@ func DeliverOrder(collection *mongo.Collection, orderID, username string) (*mong
 
 	usersCollection := db.GetCollection(collection.Database(), "users")
 
-	user, err := GetUser(usersCollection, username)
+	user, err := GetUser(usersCollection, "", order.Username)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +180,7 @@ func DeliverOrder(collection *mongo.Collection, orderID, username string) (*mong
 		}
 	}
 
-	filter = bson.M{"username": username}
+	filter = bson.M{"username": order.Username}
 
 	result2, err := usersCollection.ReplaceOne(ctx, filter, user)
 	if err != nil {
@@ -225,7 +218,7 @@ func ReceiveOrder(collection *mongo.Collection, username, orderID string) (*mong
 
 	usersCollection := db.GetCollection(collection.Database(), "users")
 
-	user, err := GetUser(usersCollection, username)
+	user, err := GetUser(usersCollection, "", username)
 	if err != nil {
 		return nil, err
 	}

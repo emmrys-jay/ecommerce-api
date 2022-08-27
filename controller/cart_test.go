@@ -220,3 +220,7 @@ func TestGetAllUserCartItems(t *testing.T) {
 	deleteRecords(details.Db, "cart")
 	dropDatabase(details.Db)
 }
+
+func TestUniqueCartField(t *testing.T) {
+
+}

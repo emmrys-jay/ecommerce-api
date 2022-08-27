@@ -165,34 +165,6 @@ func (u *UserController) GetOrdersWithUsername(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, response)
 }
 
-func (u *UserController) DeliverOrder(ctx *gin.Context) {
-	collection := db.GetCollection(u.Database, "orders")
-
-	orderID := ctx.Param("order-id")
-	if orderID == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid url param"})
-		return
-	}
-
-	username, err := util.UsernameFromToken(ctx)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
-		return
-	}
-
-	_, err = repository.DeliverOrder(collection, orderID, username)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			ctx.JSON(http.StatusNotFound, util.ErrorResponse(err))
-			return
-		}
-		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{"response": "success!"})
-}
-
 func (u *UserController) ReceiveOrder(ctx *gin.Context) {
 	collection := db.GetCollection(u.Database, "orders")
 
@@ -211,7 +183,7 @@ func (u *UserController) ReceiveOrder(ctx *gin.Context) {
 	_, err = repository.ReceiveOrder(collection, username, orderID)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			ctx.JSON(http.StatusNotFound, util.ErrorResponse(err))
+			ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
 			return
 		}
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))

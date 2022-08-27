@@ -22,10 +22,15 @@ func CreateUser(collection *mongo.Collection, user entity.User) (*mongo.InsertOn
 	return result, nil
 }
 
-func GetUser(collection *mongo.Collection, userID string) (*entity.User, error) {
+func GetUser(collection *mongo.Collection, userID string, trigger ...string) (*entity.User, error) {
 	ctx := context.Background()
 	var user = &entity.User{}
-	filter := bson.M{"_id": userID}
+	filter := bson.M{}
+	if len(trigger) > 0 {
+		filter = bson.M{"username": trigger[0]}
+	} else {
+		filter = bson.M{"_id": userID}
+	}
 
 	result := collection.FindOne(ctx, filter)
 	if result.Err() != nil {

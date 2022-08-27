@@ -106,7 +106,7 @@ type LoginUserRequest struct {
 	Password string `json:"password" form:"password" binding:"required"`
 }
 
-// Login user handles requests to confirm a user details and return a JWT token
+// LoginUser handles requests to confirm a user details and return a JWT token
 func (u *UserController) LoginUser(ctx *gin.Context) {
 	collection := db.GetCollection(u.Database, "users")
 	var user LoginUserRequest
@@ -116,9 +116,9 @@ func (u *UserController) LoginUser(ctx *gin.Context) {
 		return
 	}
 
-	storedUser, err := repository.GetUser(collection, user.Username)
+	storedUser, err := repository.GetUser(collection, "", user.Username)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user not found"})
 		return
 	}
 

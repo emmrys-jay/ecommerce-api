@@ -20,6 +20,7 @@ func InitializeAdminEndpoints(db *mongo.Database, e *gin.Engine, mdw gin.Handler
 		admin.DELETE("/cart/deleteall", adminController.DeleteAllCartItems)
 
 		admin.GET("/orders/getall", adminController.GetAllOrders)
+		admin.PUT("/deliver/:order-id", adminController.DeliverOrder)
 		admin.DELETE("/orders/delete/:id", adminController.DeleteOrder)
 		admin.DELETE("/orders/deleteall/:username", adminController.DeleteAllOrdersWithUsername)
 		admin.DELETE("/orders/deleteall", adminController.DeleteAllOrders)

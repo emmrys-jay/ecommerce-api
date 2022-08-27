@@ -22,7 +22,6 @@ func initializeOrdersRoutes(details *ServerDB) {
 		orders.POST("/:productID", userController.OrderProduct)
 		orders.GET("/get/:order-ID", userController.GetOrder)
 		orders.GET("/get", userController.GetOrdersWithUsername)
-		orders.PUT("/deliver/:order-id", userController.DeliverOrder)
 		orders.PUT("/receive/:order-id", userController.ReceiveOrder)
 		orders.POST("/cart", userController.OrderAllCartItems)
 	}
@@ -179,39 +178,39 @@ func TestGetOrderWithUsername(t *testing.T) {
 	dropDatabase(details.Db)
 }
 
-func TestDeliverOrder(t *testing.T) {
-	details := ServerDB{
-		Db:     connectDB(),
-		Server: gin.Default(),
-	}
-	initializeOrdersRoutes(&details)
-	initializeUserRoutes(&details)
-
-	product := createProduct(t, &details, "Chandlers Bags")
-
-	username := "Harry"
-	user := createUserTest(t, &details, username)
-	assert.NotZero(t, user)
-
-	orderID := orderProductTest(t, &details, user, product.ID)
-	assert.NotZero(t, orderID)
-
-	path := fmt.Sprintf("/products/order/deliver/%s", orderID)
-	req, err := http.NewRequest("PUT", path, nil)
-	req.Header.Add("Authorization", "Bearer "+user.Token)
-	assert.NoError(t, err)
-
-	recorder := httptest.NewRecorder()
-	details.Server.ServeHTTP(recorder, req)
-	assert.Equal(t, 200, recorder.Code)
-
-	order, err := getOrderTest(t, &details, user, 1, "id", orderID)
-	assert.NoError(t, err)
-	assert.True(t, order.IsDelivered)
-
-	deleteRecords(details.Db, "orders")
-	dropDatabase(details.Db)
-}
+//func TestDeliverOrder(t *testing.T) {
+//	details := ServerDB{
+//		Db:     connectDB(),
+//		Server: gin.Default(),
+//	}
+//	initializeOrdersRoutes(&details)
+//	initializeUserRoutes(&details)
+//
+//	product := createProduct(t, &details, "Chandlers Bags")
+//
+//	username := "Harry"
+//	user := createUserTest(t, &details, username)
+//	assert.NotZero(t, user)
+//
+//	orderID := orderProductTest(t, &details, user, product.ID)
+//	assert.NotZero(t, orderID)
+//
+//	path := fmt.Sprintf("/products/order/deliver/%s", orderID)
+//	req, err := http.NewRequest("PUT", path, nil)
+//	req.Header.Add("Authorization", "Bearer "+user.Token)
+//	assert.NoError(t, err)
+//
+//	recorder := httptest.NewRecorder()
+//	details.Server.ServeHTTP(recorder, req)
+//	assert.Equal(t, 200, recorder.Code)
+//
+//	order, err := getOrderTest(t, &details, user, 1, "id", orderID)
+//	assert.NoError(t, err)
+//	assert.True(t, order.IsDelivered)
+//
+//	deleteRecords(details.Db, "orders")
+//	dropDatabase(details.Db)
+//}
 
 func TestReceiveOrder(t *testing.T) {
 	details := ServerDB{
