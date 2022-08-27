@@ -28,9 +28,6 @@ jobs:
     
     - name: Setup GO environment
       uses: actions/setup-go@v3
-
-    - name: Download dependencies
-      run: go mod download
       
     - name: Test handlers with Make
       run: make test
