@@ -15,19 +15,20 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Start MongoDB Instance
-      uses: supercharge/mongodb-github-action@1.7.0
+    - name: Setup GO environment
+      uses: actions/setup-go@v3
+
+    - name: Start MongoDB
+      uses: supercharge/mongodb-github-action@1.8.0
       with:
-          mongodb-version: latest
+        mongodb-version: 5.0
 
     - name: Setup environment variables
       run: |
-        export SECRET_KEY="mysecretecommerceapikey"
-        export ADMIN_USERNAME="admin"
-        export ADMIN_PASSWORD="password"
-    
-    - name: Setup GO environment
-      uses: actions/setup-go@v3
+        export SECRET_KEY=${SECRET_KEY}
+        export ADMIN_USERNAME=${ADMIN_USERNAME}
+        export ADMIN_PASSWORD=${ADMIN_PASSWORD}
+        export GIN_MODE=${GIN_MODE}
       
     - name: Test handlers with Make
       run: make test

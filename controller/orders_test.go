@@ -10,22 +10,8 @@ import (
 	"time"
 
 	"github.com/Emmrys-Jay/ecommerce-api/entity"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-func initializeOrdersRoutes(details *ServerDB) {
-	userController := NewUserController(details.Db)
-
-	orders := details.Server.Group("/products/order")
-	{
-		orders.POST("/:productID", userController.OrderProduct)
-		orders.GET("/get/:order-ID", userController.GetOrder)
-		orders.GET("/get", userController.GetOrdersWithUsername)
-		orders.PUT("/receive/:order-id", userController.ReceiveOrder)
-		orders.POST("/cart", userController.OrderAllCartItems)
-	}
-}
 
 func orderProductTest(t *testing.T, details *ServerDB, user UserResponse, productID string) string {
 	oReq := OrderProductRequest{
@@ -46,17 +32,17 @@ func orderProductTest(t *testing.T, details *ServerDB, user UserResponse, produc
 	path := fmt.Sprintf("/products/order/%s", productID)
 	req, err := http.NewRequest("POST", path, bytes.NewBuffer(oReqJson))
 	req.Header.Add("Authorization", "Bearer "+user.Token)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	recorder := httptest.NewRecorder()
 	details.Server.ServeHTTP(recorder, req)
-	assert.Equal(t, 200, recorder.Code)
+	require.Equal(t, 200, recorder.Code)
 
 	var result OrderProductResult
 	err = json.Unmarshal(recorder.Body.Bytes(), &result)
-	assert.NoError(t, err)
-	assert.NotZero(t, result.Response)
-	assert.NotZero(t, result.OrderID)
+	require.NoError(t, err)
+	require.NotZero(t, result.Response)
+	require.NotZero(t, result.OrderID)
 
 	return result.OrderID
 }
@@ -71,11 +57,11 @@ func getOrderTest(t *testing.T, details *ServerDB, user UserResponse, expectedOu
 		if triggers[0] == "id" {
 			path := fmt.Sprintf("/products/order/get/%s", triggers[1])
 			req, err = http.NewRequest("GET", path, nil)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		} else if triggers[0] == "username" {
 			req, err = http.NewRequest("GET", "/products/order/get", nil)
 			req.Header.Add("Authorization", "Bearer "+user.Token)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		} else {
 			return nil, fmt.Errorf("Invalid trigger specified")
 		}
@@ -83,39 +69,39 @@ func getOrderTest(t *testing.T, details *ServerDB, user UserResponse, expectedOu
 
 	recorder := httptest.NewRecorder()
 	details.Server.ServeHTTP(recorder, req)
-	assert.Equal(t, 200, recorder.Code)
+	require.Equal(t, 200, recorder.Code)
 
 	if expectedOutputLength == 1 {
 		var order entity.Order
 		err = json.Unmarshal(recorder.Body.Bytes(), &order)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.NotZero(t, order.ID)
-		assert.NotZero(t, order.Username)
-		assert.NotZero(t, order.FullName)
-		assert.NotZero(t, order.DeliveryLocation)
-		assert.NotZero(t, order.ProductQuantity)
-		assert.NotZero(t, order.Product.Price)
-		assert.True(t, order.CreatedAt.Before(time.Now()))
+		require.NotZero(t, order.ID)
+		require.NotZero(t, order.Username)
+		require.NotZero(t, order.FullName)
+		require.NotZero(t, order.DeliveryLocation)
+		require.NotZero(t, order.ProductQuantity)
+		require.NotZero(t, order.Product.Price)
+		require.True(t, order.CreatedAt.Before(time.Now()))
 
 		return &order, nil
 	} else if expectedOutputLength > 1 {
 		var result GetOrdersWithUsernameResult
 		err = json.Unmarshal(recorder.Body.Bytes(), &result)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
-		assert.Equal(t, expectedOutputLength, result.ResultsFound)
-		assert.Equal(t, expectedOutputLength, len(result.Data))
-		assert.Equal(t, 1, result.PageID)
+		require.Equal(t, expectedOutputLength, result.ResultsFound)
+		require.Equal(t, expectedOutputLength, len(result.Data))
+		require.Equal(t, 1, result.PageID)
 
 		for _, v := range result.Data {
-			assert.NotZero(t, v.ID)
-			assert.NotZero(t, v.Username)
-			assert.NotZero(t, v.FullName)
-			assert.NotZero(t, v.DeliveryLocation)
-			assert.NotZero(t, v.ProductQuantity)
-			assert.NotZero(t, v.Product.Price)
-			assert.True(t, v.CreatedAt.Before(time.Now()))
+			require.NotZero(t, v.ID)
+			require.NotZero(t, v.Username)
+			require.NotZero(t, v.FullName)
+			require.NotZero(t, v.DeliveryLocation)
+			require.NotZero(t, v.ProductQuantity)
+			require.NotZero(t, v.Product.Price)
+			require.True(t, v.CreatedAt.Before(time.Now()))
 		}
 	} else {
 		return nil, fmt.Errorf("Invalid Input into expected output length")
@@ -124,24 +110,22 @@ func getOrderTest(t *testing.T, details *ServerDB, user UserResponse, expectedOu
 }
 
 func TestOrderProduct(t *testing.T) {
-	details := ServerDB{
-		Db:     connectDB(),
-		Server: gin.Default(),
-	}
-	initializeOrdersRoutes(&details)
-	initializeUserRoutes(&details)
+	details := NewServerDB()
 
-	product := createProduct(t, &details, "Chandlers Bags")
+	initializeOrdersRoutes(details)
+	initializeUserRoutes(details)
+
+	product := createProduct(t, details, "Chandlers Bags")
 
 	username := "Harry"
-	user := createUserTest(t, &details, username)
-	assert.NotZero(t, user)
+	user := createUserTest(t, details, username)
+	require.NotZero(t, user)
 
-	orderID := orderProductTest(t, &details, user, product.ID)
-	assert.NotZero(t, orderID)
+	orderID := orderProductTest(t, details, user, product.ID)
+	require.NotZero(t, orderID)
 
-	_, err := getOrderTest(t, &details, user, 1, "id", orderID)
-	assert.NoError(t, err)
+	_, err := getOrderTest(t, details, user, 1, "id", orderID)
+	require.NoError(t, err)
 
 	deleteRecords(details.Db, "orders")
 	dropDatabase(details.Db)
@@ -149,30 +133,28 @@ func TestOrderProduct(t *testing.T) {
 }
 
 func TestGetOrderWithUsername(t *testing.T) {
-	details := ServerDB{
-		Db:     connectDB(),
-		Server: gin.Default(),
-	}
-	initializeOrdersRoutes(&details)
-	initializeUserRoutes(&details)
+	details := NewServerDB()
+
+	initializeOrdersRoutes(details)
+	initializeUserRoutes(details)
 
 	productIDs := []string{}
 	for _, v := range productNames {
-		product := createProduct(t, &details, v)
+		product := createProduct(t, details, v)
 		productIDs = append(productIDs, product.ID)
 	}
 
 	username := "Harry"
-	user := createUserTest(t, &details, username)
-	assert.NotZero(t, user)
+	user := createUserTest(t, details, username)
+	require.NotZero(t, user)
 
 	for _, v := range productIDs {
-		orderID := orderProductTest(t, &details, user, v)
-		assert.NotZero(t, orderID)
+		orderID := orderProductTest(t, details, user, v)
+		require.NotZero(t, orderID)
 	}
 
-	_, err := getOrderTest(t, &details, user, 5, "username", username)
-	assert.NoError(t, err)
+	_, err := getOrderTest(t, details, user, 5, "username", username)
+	require.NoError(t, err)
 
 	deleteRecords(details.Db, "orders")
 	dropDatabase(details.Db)
@@ -183,64 +165,62 @@ func TestGetOrderWithUsername(t *testing.T) {
 //		Db:     connectDB(),
 //		Server: gin.Default(),
 //	}
-//	initializeOrdersRoutes(&details)
-//	initializeUserRoutes(&details)
+//	initializeOrdersRoutes(details)
+//	initializeUserRoutes(details)
 //
-//	product := createProduct(t, &details, "Chandlers Bags")
+//	product := createProduct(t, details, "Chandlers Bags")
 //
 //	username := "Harry"
-//	user := createUserTest(t, &details, username)
-//	assert.NotZero(t, user)
+//	user := createUserTest(t, details, username)
+//	require.NotZero(t, user)
 //
-//	orderID := orderProductTest(t, &details, user, product.ID)
-//	assert.NotZero(t, orderID)
+//	orderID := orderProductTest(t, details, user, product.ID)
+//	require.NotZero(t, orderID)
 //
 //	path := fmt.Sprintf("/products/order/deliver/%s", orderID)
 //	req, err := http.NewRequest("PUT", path, nil)
 //	req.Header.Add("Authorization", "Bearer "+user.Token)
-//	assert.NoError(t, err)
+//	require.NoError(t, err)
 //
 //	recorder := httptest.NewRecorder()
 //	details.Server.ServeHTTP(recorder, req)
-//	assert.Equal(t, 200, recorder.Code)
+//	require.Equal(t, 200, recorder.Code)
 //
-//	order, err := getOrderTest(t, &details, user, 1, "id", orderID)
-//	assert.NoError(t, err)
-//	assert.True(t, order.IsDelivered)
+//	order, err := getOrderTest(t, details, user, 1, "id", orderID)
+//	require.NoError(t, err)
+//	require.True(t, order.IsDelivered)
 //
 //	deleteRecords(details.Db, "orders")
 //	dropDatabase(details.Db)
 //}
 
 func TestReceiveOrder(t *testing.T) {
-	details := ServerDB{
-		Db:     connectDB(),
-		Server: gin.Default(),
-	}
-	initializeOrdersRoutes(&details)
-	initializeUserRoutes(&details)
+	details := NewServerDB()
 
-	product := createProduct(t, &details, "Chandlers Bags")
+	initializeOrdersRoutes(details)
+	initializeUserRoutes(details)
+
+	product := createProduct(t, details, "Chandlers Bags")
 
 	username := "Harry"
-	user := createUserTest(t, &details, username)
-	assert.NotZero(t, user)
+	user := createUserTest(t, details, username)
+	require.NotZero(t, user)
 
-	orderID := orderProductTest(t, &details, user, product.ID)
-	assert.NotZero(t, orderID)
+	orderID := orderProductTest(t, details, user, product.ID)
+	require.NotZero(t, orderID)
 
 	path := fmt.Sprintf("/products/order/receive/%s", orderID)
 	req, err := http.NewRequest("PUT", path, nil)
 	req.Header.Add("Authorization", "Bearer "+user.Token)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	recorder := httptest.NewRecorder()
 	details.Server.ServeHTTP(recorder, req)
-	assert.Equal(t, 200, recorder.Code)
+	require.Equal(t, 200, recorder.Code)
 
-	order, err := getOrderTest(t, &details, user, 1, "id", orderID)
-	assert.NoError(t, err)
-	assert.True(t, order.IsReceived)
+	order, err := getOrderTest(t, details, user, 1, "id", orderID)
+	require.NoError(t, err)
+	require.True(t, order.IsReceived)
 
 	deleteRecords(details.Db, "orders")
 	dropDatabase(details.Db)

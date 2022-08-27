@@ -46,6 +46,10 @@ func (u *UserController) AddToCart(ctx *gin.Context) {
 
 	result, err := repository.AddToCart(collection, req.Quantity, req.ProductID, username)
 	if err != nil {
+		if mongo.IsDuplicateKeyError(err) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "user already exists"})
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
 	}

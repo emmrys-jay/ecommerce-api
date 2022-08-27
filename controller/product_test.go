@@ -12,8 +12,7 @@ import (
 
 	"github.com/Emmrys-Jay/ecommerce-api/entity"
 	"github.com/Emmrys-Jay/ecommerce-api/util"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -23,21 +22,6 @@ var productNames = [...]string{
 	"Chris Rugs",
 	"chuckles Beads",
 	"Laundry Chairs",
-}
-
-func initializeProductRoutes(details *ServerDB) {
-	userController := NewUserController(details.Db)
-
-	products := details.Server.Group("/products")
-	{
-		products.GET("/get/:category", userController.GetProductsByCategory)
-		products.GET("/find", userController.FindProducts)
-		products.GET("/findone/:productID", userController.FindOneProduct)
-		// products.GET("/find/recent", userController.FindProductsWithTime)
-		// products.GET("/find/star", userController.FindProductsBasedOnReviews)
-		products.PUT("/:productID/addreview", userController.AddReview)
-		// products.GET("/categories", getAllCategories)
-	}
 }
 
 func createProduct(t *testing.T, details *ServerDB, productName string, triggers ...string) *entity.Product {
@@ -58,21 +42,19 @@ func createProduct(t *testing.T, details *ServerDB, productName string, triggers
 	}
 
 	result, err := details.Db.Collection("products").InsertOne(context.Background(), product)
-	assert.NoError(t, err)
-	assert.NotZero(t, result.InsertedID)
+	require.NoError(t, err)
+	require.NotZero(t, result.InsertedID)
 
 	return &product
 }
 
 func TestFindProducts(t *testing.T) {
-	details := ServerDB{
-		Db:     connectDB(),
-		Server: gin.Default(),
-	}
-	initializeProductRoutes(&details)
+	details := NewServerDB()
+
+	initializeProductRoutes(details)
 
 	for _, v := range productNames {
-		createProduct(t, &details, v)
+		createProduct(t, details, v)
 	}
 
 	fpReq := FindProductsRequest{
@@ -83,28 +65,28 @@ func TestFindProducts(t *testing.T) {
 
 	fpReqJson, _ := json.Marshal(fpReq)
 	req, err := http.NewRequest("GET", "/products/find", bytes.NewBuffer(fpReqJson))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	recorder := httptest.NewRecorder()
 	details.Server.ServeHTTP(recorder, req)
-	assert.Equal(t, 200, recorder.Code)
+	require.Equal(t, 200, recorder.Code)
 
 	var result = FindProductsResult{}
 	json.Unmarshal(recorder.Body.Bytes(), &result)
 
-	assert.Equal(t, 5, len(result.Data))
-	assert.Equal(t, int64(1), result.PageID)
-	assert.Equal(t, int64(1), result.NumberOfPages)
-	assert.Equal(t, int64(5), result.ResultsFound)
+	require.Equal(t, 5, len(result.Data))
+	require.Equal(t, int64(1), result.PageID)
+	require.Equal(t, int64(1), result.NumberOfPages)
+	require.Equal(t, int64(5), result.ResultsFound)
 
 	for _, v := range result.Data {
-		assert.NotZero(t, v.Name)
-		assert.NotZero(t, v.Price)
-		assert.NotZero(t, v.Currency)
-		assert.NotZero(t, v.Quantity)
-		assert.NotZero(t, v.Description)
-		assert.NotZero(t, v.Category)
-		assert.True(t, v.LastUpdated.Before(time.Now()))
+		require.NotZero(t, v.Name)
+		require.NotZero(t, v.Price)
+		require.NotZero(t, v.Currency)
+		require.NotZero(t, v.Quantity)
+		require.NotZero(t, v.Description)
+		require.NotZero(t, v.Category)
+		require.True(t, v.LastUpdated.Before(time.Now()))
 	}
 
 	deleteRecords(details.Db, "products")
@@ -112,32 +94,31 @@ func TestFindProducts(t *testing.T) {
 }
 
 func TestFindOneProduct(t *testing.T) {
-	details := ServerDB{
-		Db:     connectDB(),
-		Server: gin.Default(),
-	}
-	initializeProductRoutes(&details)
+	details := NewServerDB()
+
+	initializeProductRoutes(details)
 
 	productName := "Chandlers Rags"
-	product := createProduct(t, &details, productName)
+	product := createProduct(t, details, productName)
 
 	path := fmt.Sprintf("/products/findone/%s", product.ID)
 	req, err := http.NewRequest("GET", path, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	recorder := httptest.NewRecorder()
 	details.Server.ServeHTTP(recorder, req)
-	assert.Equal(t, 200, recorder.Code)
+	require.Equal(t, 200, recorder.Code)
 
 	var result = entity.Product{}
-	json.Unmarshal(recorder.Body.Bytes(), &result)
+	err = json.Unmarshal(recorder.Body.Bytes(), &result)
+	require.NoError(t, err)
 
-	assert.Equal(t, product.Name, result.Name)
-	assert.Equal(t, product.ID, result.ID)
-	assert.Equal(t, product.Price, result.Price)
-	assert.Equal(t, product.Quantity, result.Quantity)
-	assert.Equal(t, product.Category, result.Category)
-	assert.Equal(t, product.Description, result.Description)
+	require.Equal(t, product.Name, result.Name)
+	require.Equal(t, product.ID, result.ID)
+	require.Equal(t, product.Price, result.Price)
+	require.Equal(t, product.Quantity, result.Quantity)
+	require.Equal(t, product.Category, result.Category)
+	require.Equal(t, product.Description, result.Description)
 
 	deleteRecords(details.Db, "products")
 	dropDatabase(details.Db)
@@ -167,82 +148,78 @@ func addReviewTest(t *testing.T, details *ServerDB, stars int, triggers ...strin
 	path := fmt.Sprintf("/products/%s/addreview", product.ID)
 	req, err := http.NewRequest("PUT", path, bytes.NewBuffer(rJson))
 	req.Header.Add("Authorization", "Bearer "+user.Token)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	recorder := httptest.NewRecorder()
 	details.Server.ServeHTTP(recorder, req)
 
 	if len(triggers) > 0 {
 		if triggers[0] == "stars" {
-			assert.Equal(t, 400, recorder.Code)
-			assert.NotEqual(t, "404 page not found", recorder.Body.String())
+			require.Equal(t, 400, recorder.Code)
+			require.NotEqual(t, "404 page not found", recorder.Body.String())
 		}
 	} else {
-		assert.Equal(t, 200, recorder.Code)
-		assert.NotEqual(t, "404 page not found", recorder.Body.String())
+		require.Equal(t, 200, recorder.Code)
+		require.NotEqual(t, "404 page not found", recorder.Body.String())
 	}
 
 }
 
 func TestAddReview(t *testing.T) {
-	details := ServerDB{
-		Db:     connectDB(),
-		Server: gin.Default(),
-	}
-	initializeProductRoutes(&details)
-	initializeUserRoutes(&details)
+	details := NewServerDB()
+
+	initializeProductRoutes(details)
+	initializeUserRoutes(details)
 
 	// Test with a valid number of stars (1 - 5)
-	addReviewTest(t, &details, 5)
+	addReviewTest(t, details, 5)
 
 	// Test with an invalid number of stars (>5)
-	addReviewTest(t, &details, 9, "stars")
+	addReviewTest(t, details, 9, "stars")
 
 	// Test with an invalid number of stars (<1)
-	addReviewTest(t, &details, -3, "stars")
+	addReviewTest(t, details, -3, "stars")
 
 	deleteRecords(details.Db, "products")
 	dropDatabase(details.Db)
 }
 
 func TestGetProductsByCategory(t *testing.T) {
-	details := ServerDB{
-		Db:     connectDB(),
-		Server: gin.Default(),
-	}
-	initializeProductRoutes(&details)
+	details := NewServerDB()
+
+	initializeProductRoutes(details)
 
 	productsCategory := "bags"
 	for _, v := range productNames {
-		createProduct(t, &details, v, productsCategory)
+		createProduct(t, details, v, productsCategory)
 	}
 
 	path := fmt.Sprintf("/products/get/%s", productsCategory)
 	req, err := http.NewRequest("GET", path, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	recorder := httptest.NewRecorder()
 	details.Server.ServeHTTP(recorder, req)
-	assert.Equal(t, 200, recorder.Code)
-	assert.NotEqual(t, "404 page not found", recorder.Body.String())
+	require.Equal(t, 200, recorder.Code)
+	require.NotEqual(t, "404 page not found", recorder.Body.String())
 
 	var result FindProductsResult
 	err = json.Unmarshal(recorder.Body.Bytes(), &result)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Equal(t, 5, len(result.Data))
-	assert.Equal(t, int64(1), result.PageID)
-	assert.Equal(t, int64(1), result.NumberOfPages)
-	assert.Equal(t, int64(5), result.ResultsFound)
+	require.Equal(t, 5, len(result.Data))
+	require.Equal(t, int64(1), result.PageID)
+	require.Equal(t, int64(1), result.NumberOfPages)
+	require.Equal(t, int64(5), result.ResultsFound)
 
 	for _, v := range result.Data {
-		assert.NotZero(t, v.Name)
-		assert.NotZero(t, v.Price)
-		assert.NotZero(t, v.Currency)
-		assert.NotZero(t, v.Quantity)
-		assert.NotZero(t, v.Description)
-		assert.Equal(t, productsCategory, v.Category)
-		assert.True(t, v.LastUpdated.Before(time.Now()))
+		require.NotZero(t, v.Name)
+		require.NotZero(t, v.Price)
+		require.NotZero(t, v.Currency)
+		require.NotZero(t, v.Quantity)
+		require.NotZero(t, v.Description)
+		require.Equal(t, productsCategory, v.Category)
+		require.True(t, v.LastUpdated.Before(time.Now()))
 	}
 
 	deleteRecords(details.Db, "products")
