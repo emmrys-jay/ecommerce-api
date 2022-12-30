@@ -13,8 +13,8 @@ import (
 )
 
 func OrderProductDirectly(
-	collection *mongo.Collection, location entity.Location, quantity int,
-	username, userID, fullname, productID, paymentMethod, orderID string) (*mongo.InsertOneResult, string, error) {
+	collection *mongo.Collection, location *entity.Location, quantity int,
+	userID, fullname, productID, paymentMethod string) (*mongo.InsertOneResult, string, error) {
 
 	ctx := context.Background()
 
@@ -26,18 +26,14 @@ func OrderProductDirectly(
 	}
 
 	order := entity.Order{
-		ID:               orderID,
-		Username:         username,
+		ID:               primitive.NewObjectIDFromTimestamp(time.Now()).Hex(),
+		UserID:           userID,
 		FullName:         fullname,
-		DeliveryLocation: location,
+		DeliveryLocation: *location,
 		Product:          *product,
 		ProductQuantity:  quantity,
 		IsDelivered:      false,
 		CreatedAt:        time.Now(),
-	}
-
-	if orderID == "" {
-		order.ID = primitive.NewObjectIDFromTimestamp(time.Now()).String()[10:34]
 	}
 
 	result, err := collection.InsertOne(ctx, order)
@@ -47,14 +43,6 @@ func OrderProductDirectly(
 
 	// Update product quantity left and number of orders of that product
 	_, err = UpdateProduct(productsCollection, productID, 0.00, -int64(quantity), int64(quantity))
-	if err != nil {
-		return nil, "", err
-	}
-
-	usersCollection := db.GetCollection(collection.Database(), "users")
-
-	// Add order to the orders in the user collection
-	_, err = AddOrderToUser(usersCollection, userID, order)
 	if err != nil {
 		return nil, "", err
 	}
@@ -81,12 +69,12 @@ func GetSingleOrder(collection *mongo.Collection, orderID string) (*entity.Order
 	return &order, nil
 }
 
-func GetOrdersWithUsername(collection *mongo.Collection, username string, limit, offset int) ([]entity.Order, int64, error) {
+func GetOrdersByUser(collection *mongo.Collection, userID string, limit, offset int) ([]entity.Order, int64, error) {
 	ctx := context.Background()
 	var orders = []entity.Order{}
 	var order = entity.Order{}
 
-	filter := bson.M{"username": username}
+	filter := bson.M{"user_id": userID}
 
 	length, err := collection.CountDocuments(ctx, filter)
 	if err != nil {
@@ -145,17 +133,10 @@ func GetAllOrders(collection *mongo.Collection, limit, offset int) ([]entity.Ord
 	return orders, length, nil
 }
 
-func DeliverOrder(collection *mongo.Collection, orderID, username string) (*mongo.UpdateResult, error) {
+func DeliverOrder(collection *mongo.Collection, orderID string) (*mongo.UpdateResult, error) {
 	ctx := context.Background()
 
-	filter := bson.M{"$and": []bson.M{
-		{
-			"_id": orderID,
-		},
-		{
-			"username": username,
-		},
-	}}
+	filter := bson.M{"_id": orderID}
 
 	order, err := GetSingleOrder(collection, orderID)
 	if err != nil {
@@ -167,34 +148,12 @@ func DeliverOrder(collection *mongo.Collection, orderID, username string) (*mong
 	order.IsDelivered = true
 	order.TimeDelivered = currentTime
 
-	_, err = collection.ReplaceOne(ctx, filter, order)
+	result, err := collection.ReplaceOne(ctx, filter, order)
 	if err != nil {
 		return nil, err
 	}
 
-	usersCollection := db.GetCollection(collection.Database(), "users")
-
-	user, err := GetUser(usersCollection, username)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range user.Orders {
-		if user.Orders[i].ID == orderID {
-			user.Orders[i].IsDelivered = true
-			user.Orders[i].TimeDelivered = currentTime
-			break
-		}
-	}
-
-	filter = bson.M{"username": username}
-
-	result2, err := usersCollection.ReplaceOne(ctx, filter, user)
-	if err != nil {
-		return nil, err
-	}
-
-	return result2, nil
+	return result, nil
 }
 
 func ReceiveOrder(collection *mongo.Collection, username, orderID string) (*mongo.UpdateResult, error) {
@@ -218,57 +177,31 @@ func ReceiveOrder(collection *mongo.Collection, username, orderID string) (*mong
 
 	order.IsReceived = true
 
-	_, err = collection.ReplaceOne(ctx, filter, order)
+	result, err := collection.ReplaceOne(ctx, filter, order)
 	if err != nil {
 		return nil, err
 	}
 
-	usersCollection := db.GetCollection(collection.Database(), "users")
-
-	user, err := GetUser(usersCollection, username)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range user.Orders {
-		if user.Orders[i].ID == orderID {
-			user.Orders[i].IsReceived = true
-			break
-		}
-	}
-
-	filter = bson.M{"username": username}
-
-	result2, err := usersCollection.ReplaceOne(ctx, filter, user)
-	if err != nil {
-		return nil, err
-	}
-
-	return result2, nil
-
+	return result, nil
 }
 
-func OrderAllCartItems(collection *mongo.Collection,
-	username, userID, fullname, paymentMethod string,
-	location entity.Location) (int, string, error) {
+func OrderAllCartItems(collection *mongo.Collection, userID, fullname, paymentMethod string, location entity.Location) (int, error) {
 
 	cartCollection := db.GetCollection(collection.Database(), "cart")
 
-	cartItems, _, err := GetUserCartItems(cartCollection, username, 0, 0)
+	cartItems, _, err := GetUserCartItems(cartCollection, userID, 0, 0)
 	if err != nil {
-		return 0, "", err
+		return 0, err
 	}
 
-	productNamesString := ""
 	for _, val := range cartItems {
-		_, name, err := OrderProductDirectly(collection, location, int(val.Quantity), username, userID, fullname, val.Product.ID, paymentMethod, "")
+		_, _, err := OrderProductDirectly(collection, &location, int(val.Quantity), userID, fullname, val.Product.ID, paymentMethod)
 		if err != nil {
-			return 0, "", err
+			return 0, err
 		}
-		productNamesString = productNamesString + " " + name
 	}
 
-	return len(cartItems), productNamesString, nil
+	return len(cartItems), nil
 
 }
 
@@ -285,10 +218,10 @@ func DeleteOrder(collection *mongo.Collection, id string) (*mongo.DeleteResult, 
 	return result, nil
 }
 
-func DeleteAllOrdersWithUsername(collection *mongo.Collection, username string) (*mongo.DeleteResult, error) {
+func DeleteAllOrdersWithUserID(collection *mongo.Collection, userID string) (*mongo.DeleteResult, error) {
 	ctx := context.Background()
 
-	filter := bson.M{"username": username}
+	filter := bson.M{"user_id": userID}
 
 	result, err := collection.DeleteMany(ctx, filter)
 	if err != nil {

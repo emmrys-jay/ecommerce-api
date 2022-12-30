@@ -22,14 +22,20 @@ func CreateUser(collection *mongo.Collection, user entity.User) (*mongo.InsertOn
 	return result, nil
 }
 
-func GetUser(collection *mongo.Collection, userID string) (*entity.User, error) {
+// GetUser gets a single user by ID or Username
+func GetUser(collection *mongo.Collection, userID string, trigger ...string) (*entity.User, error) {
 	ctx := context.Background()
 	var user = &entity.User{}
-	filter := bson.M{"_id": userID}
+	filter := make(bson.M)
+	if len(trigger) > 0 {
+		filter["username"] = trigger[0]
+	} else {
+		filter["_id"] = userID
+	}
 
 	result := collection.FindOne(ctx, filter)
-	if result.Err() != nil {
-		return nil, mongo.ErrNoDocuments
+	if err := result.Err(); err != nil {
+		return nil, err
 	}
 
 	err := result.Decode(user)
@@ -63,10 +69,10 @@ func GetAllUsers(collection *mongo.Collection, limit, offset int) ([]entity.User
 	return users, length, nil
 }
 
-func DeleteUser(collection *mongo.Collection, username string) (*mongo.DeleteResult, error) {
+func DeleteUser(collection *mongo.Collection, userID string) (*mongo.DeleteResult, error) {
 	ctx := context.Background()
 
-	filter := bson.M{"username": username}
+	filter := bson.M{"_id": userID}
 
 	result, err := collection.DeleteOne(ctx, filter)
 
@@ -86,17 +92,18 @@ func DeleteAllUsers(collection *mongo.Collection) (*mongo.DeleteResult, error) {
 /*
 * Models direct database querying functions to update/modify the following user fields:
 * - username
+* - fullname
 * - password
 * - profile_picture
 * - email
 * - mobile number
 * - default payment method
  */
-func UpdateUserFlexible(collection *mongo.Collection, username, detail, update, salt string) error {
+func UpdateUserFlexible(collection *mongo.Collection, userID, detail, update, salt string) error {
 	ctx := context.Background()
 	var user = entity.User{}
 
-	filter := bson.M{"username": username}
+	filter := bson.M{"_id": userID}
 	result := collection.FindOne(ctx, filter)
 
 	err := result.Decode(&user)
@@ -108,8 +115,10 @@ func UpdateUserFlexible(collection *mongo.Collection, username, detail, update, 
 	case "username":
 		user.Username = update
 	case "password":
-		user.HashedPassword = update
+		user.Password = update
 		user.PasswordSalt = salt
+	case "fullname":
+		user.Fullname = update
 	case "profile_picture":
 		user.ProfilePicture = update
 	case "email":
@@ -130,7 +139,7 @@ func UpdateUserFlexible(collection *mongo.Collection, username, detail, update, 
 	return err
 }
 
-func AddLocation(collection *mongo.Collection, userID string, location entity.Location) (*entity.Location, error) {
+func AddLocation(collection *mongo.Collection, userID string, location entity.Location) (*mongo.UpdateResult, error) {
 	ctx := context.Background()
 
 	filter := bson.M{"_id": userID}
@@ -146,28 +155,9 @@ func AddLocation(collection *mongo.Collection, userID string, location entity.Lo
 	user.RegisteredLocations = append(user.RegisteredLocations, location)
 	user.LastUpdated = time.Now()
 
-	_, err = collection.ReplaceOne(ctx, filter, user)
+	r, err := collection.ReplaceOne(ctx, filter, user)
 
-	return &location, err
-}
-
-func AddOrderToUser(collection *mongo.Collection, userID string, order entity.Order) (*mongo.UpdateResult, error) {
-	ctx := context.Background()
-
-	filter := bson.M{"_id": userID}
-
-	user, err := GetUser(collection, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	user.Orders = append(user.Orders, order)
-	user.LastUpdated = time.Now()
-
-	result, err := collection.ReplaceOne(ctx, filter, user)
-
-	return result, err
-
+	return r, err
 }
 
 // VerifyEmail function

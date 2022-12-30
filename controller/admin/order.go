@@ -23,7 +23,7 @@ type GetAllOrdersResult struct {
 
 // GetAllOrders handles a request to get all site orders from an admin
 func (a *AdminController) GetAllOrders(ctx *gin.Context) {
-	collection := db.GetCollection(a.Database, "orders")
+	collection := db.GetCollection(a.UserController.Database, "orders")
 	var err error
 	var pageID int
 	var pageSize = 5
@@ -76,9 +76,32 @@ func (a *AdminController) GetAllOrders(ctx *gin.Context) {
 
 }
 
-// DeleteCartItem is an admin specific handler to delete a single item in cart
+// DeliverOrder is used by an admin to indicate that an order has been delivered
+func (a *AdminController) DeliverOrder(ctx *gin.Context) {
+	collection := db.GetCollection(a.UserController.Database, "orders")
+
+	orderID := ctx.Param("order-id")
+	if orderID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid url param"})
+		return
+	}
+
+	_, err := repository.DeliverOrder(collection, orderID)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"response": "success!"})
+}
+
+// DeleteOrder is an admin specific handler to delete a single order
 func (a *AdminController) DeleteOrder(ctx *gin.Context) {
-	collection := db.GetCollection(a.Database, "orders")
+	collection := db.GetCollection(a.UserController.Database, "orders")
 
 	orderID := ctx.Param("id")
 	if orderID == "" {
@@ -96,17 +119,17 @@ func (a *AdminController) DeleteOrder(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"success": response})
 }
 
-// DeleteAllCartItems is an admin specific handler to delete all items in cart of different users
-func (a *AdminController) DeleteAllOrdersWithUsername(ctx *gin.Context) {
-	collection := db.GetCollection(a.Database, "orders")
+// DeleteAllOrdersWithUserID is an admin specific handler to delete all orders by a single user
+func (a *AdminController) DeleteAllOrdersWithUserID(ctx *gin.Context) {
+	collection := db.GetCollection(a.UserController.Database, "orders")
 
-	username := ctx.Param("username")
+	username := ctx.Param("user-id")
 	if username == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid param - no id specified"})
 		return
 	}
 
-	result, err := repository.DeleteAllOrdersWithUsername(collection, username)
+	result, err := repository.DeleteAllOrdersWithUserID(collection, username)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
@@ -116,9 +139,9 @@ func (a *AdminController) DeleteAllOrdersWithUsername(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"success": response})
 }
 
-// DeleteAllCartItems is an admin specific handler to delete all items in cart of different users
+// DeleteAllOrders is an admin specific handler to delete all orders of different users
 func (a *AdminController) DeleteAllOrders(ctx *gin.Context) {
-	collection := db.GetCollection(a.Database, "orders")
+	collection := db.GetCollection(a.UserController.Database, "orders")
 
 	result, err := repository.DeleteAllOrders(collection)
 	if err != nil {

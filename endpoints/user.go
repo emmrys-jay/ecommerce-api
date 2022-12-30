@@ -11,12 +11,11 @@ func InitializeUserEndpoints(db *mongo.Database, e *gin.Engine, mdw gin.HandlerF
 
 	user := e.Group("/user")
 	{
-		user.POST("/create", userController.CreateUser)
+		user.GET("", mdw, userController.GetUser)
+		user.PATCH("", mdw, userController.UpdateUserFlexible)
+		user.POST("/signup", userController.CreateUser)
 		user.POST("/login", userController.LoginUser)
-		// user.POST("/logout", userController.LogoutUser)
-		user.GET("/get", mdw, userController.GetUser)
-		user.PUT("/password", mdw, userController.ChangePassword)
-		user.PUT("/update", mdw, userController.UpdateUserFlexible)
-		user.PUT("/location/add", mdw, userController.AddLocation)
+		user.PATCH("/password", mdw, userController.ChangePassword)
+		user.PATCH("/location", mdw, userController.AddLocation)
 	}
 }

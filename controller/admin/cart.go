@@ -16,7 +16,7 @@ import (
 
 // GetCartItem gets a single product stored in a users cart, mainly used by admin
 func (a *AdminController) GetCartItem(ctx *gin.Context) {
-	collection := db.GetCollection(a.Database, "cart")
+	collection := db.GetCollection(a.UserController.Database, "cart")
 
 	cartID := ctx.Param("cart-id")
 	if cartID == "" {
@@ -46,7 +46,7 @@ type GetAllUserCartResult struct {
 
 // GetAllCartItems gets a single product stored in a users cart, mainly used by admin
 func (a *AdminController) GetAllCartItems(ctx *gin.Context) {
-	collection := db.GetCollection(a.Database, "cart")
+	collection := db.GetCollection(a.UserController.Database, "cart")
 	var pageID, pageSize = 1, 5
 	var err error
 
@@ -97,7 +97,7 @@ func (a *AdminController) GetAllCartItems(ctx *gin.Context) {
 
 // DeleteCartItem is an admin specific handler to delete a single item in cart
 func (a *AdminController) DeleteCartItem(ctx *gin.Context) {
-	collection := db.GetCollection(a.Database, "cart")
+	collection := db.GetCollection(a.UserController.Database, "cart")
 
 	cartItemID := ctx.Param("id")
 	if cartItemID == "" {
@@ -117,7 +117,7 @@ func (a *AdminController) DeleteCartItem(ctx *gin.Context) {
 
 // DeleteAllUserCartItems is an admin specific handler to delete all items in cart of a user
 func (a *AdminController) DeleteAllUserCartItems(ctx *gin.Context) {
-	collection := db.GetCollection(a.Database, "cart")
+	collection := db.GetCollection(a.UserController.Database, "cart")
 
 	username := ctx.Param("username")
 	if username == "" {
@@ -137,7 +137,7 @@ func (a *AdminController) DeleteAllUserCartItems(ctx *gin.Context) {
 
 // DeleteAllCartItems is an admin specific handler to delete all items in cart of different users
 func (a *AdminController) DeleteAllCartItems(ctx *gin.Context) {
-	collection := db.GetCollection(a.Database, "cart")
+	collection := db.GetCollection(a.UserController.Database, "cart")
 
 	result, err := repository.DeleteAllCartItems(collection)
 	if err != nil {

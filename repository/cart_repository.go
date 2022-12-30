@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/Emmrys-Jay/ecommerce-api/db"
@@ -13,7 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func AddToCart(collection *mongo.Collection, quantity int64, productID, username string) (*mongo.InsertOneResult, error) {
+func AddToCart(collection *mongo.Collection, quantity int64, productID, userID string) (*mongo.InsertOneResult, error) {
 	ctx := context.Background()
 
 	product, err := FindOneProduct(db.GetCollection(collection.Database(), "products"), productID)
@@ -21,13 +22,18 @@ func AddToCart(collection *mongo.Collection, quantity int64, productID, username
 		return nil, err
 	}
 
+	res := collection.FindOne(ctx, bson.M{"user_id": userID})
+	if res.Err() == nil {
+		return nil, errors.New("product already in your cart")
+	}
+
 	item := entity.CartItem{
-		ID:          primitive.NewObjectIDFromTimestamp(time.Now()).String()[10:34],
-		ProductName: product.Name,
-		Username:    username,
-		Quantity:    quantity,
-		DateAdded:   time.Now(),
-		Product:     *product,
+		ID:        primitive.NewObjectIDFromTimestamp(time.Now()).Hex(),
+		ProductID: product.ID,
+		UserID:    userID,
+		Quantity:  quantity,
+		DateAdded: time.Now(),
+		Product:   *product,
 	}
 
 	result, err := collection.InsertOne(ctx, item)
@@ -35,7 +41,7 @@ func AddToCart(collection *mongo.Collection, quantity int64, productID, username
 	return result, err
 }
 
-func RemoveFromCart(collection *mongo.Collection, cartItemID, username string) (*mongo.DeleteResult, error) {
+func RemoveFromCart(collection *mongo.Collection, cartItemID, userID string) (*mongo.DeleteResult, error) {
 	ctx := context.Background()
 
 	filter := bson.M{
@@ -44,7 +50,7 @@ func RemoveFromCart(collection *mongo.Collection, cartItemID, username string) (
 				"_id": cartItemID,
 			},
 			{
-				"username": username,
+				"user_id": userID,
 			},
 		},
 	}
@@ -84,20 +90,20 @@ func UpdateCartQuantity(collection *mongo.Collection, quantity int, cartItemID, 
 	return result, err
 }
 
-func GetCartItem(collection *mongo.Collection, cartItemID, username string) (*entity.CartItem, error) {
+func GetCartItem(collection *mongo.Collection, cartItemID, userID string) (*entity.CartItem, error) {
 	ctx := context.Background()
 	var cartItem = entity.CartItem{}
 
 	filter := bson.M{"_id": cartItemID}
 
-	if username != "" {
+	if userID != "" {
 		filter = bson.M{
 			"$and": []bson.M{
 				{
 					"_id": cartItemID,
 				},
 				{
-					"username": username,
+					"user_id": userID,
 				},
 			},
 		}
@@ -112,7 +118,7 @@ func GetCartItem(collection *mongo.Collection, cartItemID, username string) (*en
 	return &cartItem, err
 }
 
-func GetUserCartItems(collection *mongo.Collection, username string, offset, limit int) ([]entity.CartItem, int64, error) {
+func GetUserCartItems(collection *mongo.Collection, userID string, offset, limit int) ([]entity.CartItem, int64, error) {
 	ctx := context.Background()
 	var cartItems = []entity.CartItem{}
 	option := options.Find()
@@ -120,7 +126,7 @@ func GetUserCartItems(collection *mongo.Collection, username string, offset, lim
 	var err error
 
 	filter := bson.M{
-		"username": username,
+		"user_id": userID,
 	}
 
 	if offset != 0 || limit != 0 {
