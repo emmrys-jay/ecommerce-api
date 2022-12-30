@@ -12,9 +12,9 @@ func InitializeOrdersEndpoints(db *mongo.Database, e *gin.Engine, mdw gin.Handle
 	orders := e.Group("/products/order", mdw)
 	{
 		orders.POST("/:productID", userController.OrderProduct)
-		orders.GET("/get/:order-ID", userController.GetOrder)
-		orders.GET("/get", userController.GetOrdersWithUsername)
-		orders.PUT("/receive/:order-id", userController.ReceiveOrder)
+		orders.GET("/:order-ID", userController.GetOrder)
+		orders.GET("/orders", userController.GetOrdersWithUsername)
+		orders.PATCH("/receive/:order-id", userController.ReceiveOrder)
 		orders.POST("/cart", userController.OrderAllCartItems)
 	}
 }

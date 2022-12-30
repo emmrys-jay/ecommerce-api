@@ -9,11 +9,11 @@ import (
 func InitializeCartEndpoints(db *mongo.Database, e *gin.Engine, mdw gin.HandlerFunc) {
 	usercontroller := controller.NewUserController(db)
 
-	cart := e.Group("/user/cart", mdw)
+	cart := e.Group("/user", mdw)
 	{
-		cart.POST("/add", usercontroller.AddToCart)
-		cart.DELETE("/remove/:cart-id", usercontroller.RemoveFromCart)
-		cart.PUT("/update", usercontroller.UpdateCartQuantity)
-		cart.GET("/getall", usercontroller.GetUserCartItems)
+		cart.POST("/cart", usercontroller.AddToCart)
+		cart.DELETE("/cart/:cart-id", usercontroller.RemoveFromCart)
+		cart.PUT("/cart", usercontroller.UpdateCartQuantity)
+		cart.GET("/cart/get_all", usercontroller.GetUserCartItems)
 	}
 }
