@@ -63,7 +63,7 @@ func initializeProductRoutes(details *ServerDB) {
 		products.GET("/find", userController.FindProducts)
 		products.GET("/findone/:productID", userController.FindOneProduct)
 		// products.GET("/find/recent", userController.FindProductsWithTime)
-		// products.GET("/find/star", userController.FindProductsBasedOnReviews)
+		//products.GET("/find/reviews", userController.FindProductsBasedOnReviews)
 		products.PUT("/:productID/addreview", userController.AddReview)
 		// products.GET("/categories", getAllCategories)
 	}

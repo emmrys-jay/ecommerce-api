@@ -16,12 +16,12 @@ func NewPayload(username string, id string) *Payload {
 		ID:        id,
 		Username:  username,
 		CreatedAt: time.Now(),
-		ExpiresAt: time.Now().Add(time.Hour),
+		ExpiresAt: time.Now().Add(5 * time.Hour),
 	}
 }
 
 func (payload *Payload) Valid() error {
-	if payload.ExpiresAt.After(payload.CreatedAt) {
+	if payload.ExpiresAt.After(time.Now()) {
 		return nil
 	}
 	return ErrExpiredToken

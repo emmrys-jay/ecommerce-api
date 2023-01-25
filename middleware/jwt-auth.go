@@ -28,7 +28,7 @@ func AuthorizeJWT() gin.HandlerFunc {
 		}
 
 		if err := payload.Valid(); err != nil {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"unauthorized": "access denied"})
+			ctx.JSON(http.StatusUnauthorized, gin.H{"unauthorized": auth.ErrExpiredToken.Error()})
 			ctx.Abort()
 			return
 		}
