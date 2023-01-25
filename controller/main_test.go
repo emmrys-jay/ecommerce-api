@@ -3,12 +3,13 @@ package controller
 import (
 	"context"
 	"fmt"
+	"log"
+
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
-	"log"
 )
 
 type ServerDB struct {
@@ -81,6 +82,7 @@ func initializeOrdersRoutes(details *ServerDB) {
 		orders.POST("/cart", userController.OrderAllCartItems)
 	}
 }
+
 func configureCartCollection(details *ServerDB) error {
 	collection := details.Db.Collection("cart")
 
