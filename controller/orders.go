@@ -44,21 +44,23 @@ func (u *UserController) OrderProduct(ctx *gin.Context) {
 		return
 	}
 
-	userID, err := util.UserIDFromToken(ctx)
+	user, err := util.UserFromToken(ctx, collection.Database())
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
 	}
 
-	orderID := primitive.NewObjectIDFromTimestamp(time.Now()).Hex()
+	orderID := primitive.NewObjectIDFromTimestamp(time.Now()).String()[10:34]
 	_, productName, err := repository.OrderProductDirectly(
 		collection,
-		&req.Location,
+		req.Location,
 		req.Quantity,
-		userID,
+		user.Username,
+		user.ID,
 		req.Fullname,
 		productID,
 		req.PaymentMethod,
+		orderID,
 	)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -78,7 +80,14 @@ func (u *UserController) OrderProduct(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, fResponse)
 }
 
-// GetOrder returns an order db entry
+type GetOrdersWithUsernameResult struct {
+	PageID        int            `json:"page_id"`
+	ResultsFound  int            `json:"results_found"`
+	NumberOfPages int            `json:"no_of_pages"`
+	Data          []entity.Order `json:"data"`
+}
+
+//  GetOrder returns an order db entry
 func (u *UserController) GetOrder(ctx *gin.Context) {
 	collection := db.GetCollection(u.Database, "orders")
 
@@ -130,19 +139,19 @@ func (u *UserController) GetOrdersWithUsername(ctx *gin.Context) {
 		Limit:  pageSize,
 	}
 
-	userID, err := util.UserIDFromToken(ctx)
+	username, err := util.UsernameFromToken(ctx)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
 		return
 	}
 
-	orders, length, err := repository.GetOrdersByUser(collection, userID, param.Limit, param.Offset)
+	orders, length, err := repository.GetOrdersWithUsername(collection, username, param.Limit, param.Offset)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
 	}
 
-	response := entity.PaginationResponse{
+	response := GetOrdersWithUsernameResult{
 		PageID:        pageID,
 		NumberOfPages: int(math.Ceil(float64(length) / float64(pageSize))),
 		ResultsFound:  int(length),
@@ -200,25 +209,30 @@ func (u *UserController) OrderAllCartItems(ctx *gin.Context) {
 		return
 	}
 
-	userID, err := util.UserIDFromToken(ctx)
+	user, err := util.UserFromToken(ctx, collection.Database())
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
 		return
 	}
 
-	numProductsOrdered, err := repository.OrderAllCartItems(
+	numProductsOrdered, namesProductsOrdered, err := repository.OrderAllCartItems(
 		collection,
-		userID,
+		user.Username,
+		user.ID,
 		req.Fullname,
 		req.PaymentMethod,
 		req.Location,
 	)
 
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
+		if err == mongo.ErrNoDocuments {
+			ctx.JSON(http.StatusNotFound, util.ErrorResponse(err))
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
 	}
 
-	response := fmt.Sprintf("successfully ordered %d products", numProductsOrdered)
+	response := fmt.Sprintf("successfully ordered %d products with names: %s", numProductsOrdered, namesProductsOrdered)
 	ctx.JSON(http.StatusOK, gin.H{"response": response})
 }

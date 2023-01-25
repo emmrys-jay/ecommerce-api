@@ -164,56 +164,7 @@ func (u *UserController) AddReview(ctx *gin.Context) {
 
 // }
 
-// FindProductsBasedOnReviews gets products in descending order of their number of reviews
-//func (u *UserController) FindProductsBasedOnReviews(ctx *gin.Context) {
-//	collection := db.GetCollection(u.Database, "products")
-//	pageSize, pageID := 5, 1
-//
-//	pageIDString := ctx.Query("page_id")
-//
-//	if pageIDString != "" {
-//		pageID, err := strconv.Atoi(pageIDString)
-//		if err != nil {
-//			ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
-//			return
-//		}
-//
-//		if pageID < 1 {
-//			pageID = 1
-//		}
-//	}
-//
-//	var param = struct {
-//		Offset int
-//		Limit  int
-//	}{
-//		Offset: pageSize * (pageID - 1),
-//		Limit:  pageSize,
-//	}
-//
-//	products, length, err := repository.GetProductsByReviews(collection, param.Offset, param.Limit)
-//	if err != nil {
-//		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
-//		return
-//	}
-//
-//	NoOfPages := math.Ceil(float64(length) / float64(int(pageSize)))
-//
-//	response := FindProductsResult{
-//		PageID:        int64(pageID),
-//		ResultsFound:  length,
-//		NumberOfPages: int64(NoOfPages),
-//		Data:          products,
-//	}
-//
-//	if response.NumberOfPages < 1 {
-//		response.PageID = 0
-//	}
-//
-//	ctx.JSON(http.StatusOK, response)
-//}
-
-// GetProductsByCategory returns products that belong to a category
+// GetProductByCategory returns products that belong to a category
 func (u *UserController) GetProductsByCategory(ctx *gin.Context) {
 	collection := db.GetCollection(u.Database, "products")
 	pageSize, pageID := 5, 1

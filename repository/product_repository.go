@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/Emmrys-Jay/ecommerce-api/entity"
@@ -91,19 +90,12 @@ func FindProducts(collection *mongo.Collection, name string, offset, limit int64
 	return products, length, nil
 }
 
-func DeleteProduct(collection *mongo.Collection, ids string) (int, error) {
+func DeleteProduct(collection *mongo.Collection, name string) (*mongo.DeleteResult, error) {
 	ctx := context.Background()
-	idSlice := strings.Split(ids, ",")
+	filter := bson.D{{Key: "name", Value: name}}
 
-	for _, id := range idSlice {
-		filter := bson.D{{Key: "_id", Value: id}}
-		_, err := collection.DeleteOne(ctx, filter)
-		if err != nil {
-			return -1, err
-		}
-	}
-
-	return len(idSlice), nil
+	result, err := collection.DeleteOne(ctx, filter)
+	return result, err
 }
 
 func DeleteAllProducts(collection *mongo.Collection) (*mongo.DeleteResult, error) {
@@ -126,24 +118,18 @@ func UpdateProduct(collection *mongo.Collection, id string, price float64, quant
 	filter := bson.M{"_id": id}
 
 	if price != 0 {
-		if price <= 0 {
-			product.Price = price
-			product.LastUpdated = time.Now()
-		}
+		product.Price = price
+		product.LastUpdated = time.Now()
 	}
 
 	if quantity != 0 {
-		if !(product.Quantity+quantity < 0) {
-			product.Quantity += quantity
-			product.LastUpdated = time.Now()
-		}
+		product.Quantity += quantity
+		product.LastUpdated = time.Now()
 	}
 
 	if productOrders != 0 {
-		if !(product.Quantity+quantity < 0) {
-			product.NumOfOrders += productOrders
-			product.LastUpdated = time.Now()
-		}
+		product.NumOfOrders += productOrders
+		product.LastUpdated = time.Now()
 	}
 
 	result, err := collection.ReplaceOne(ctx, filter, product)
@@ -160,8 +146,8 @@ func AddProductReview(collection *mongo.Collection, productID string, review ent
 	}
 
 	review.CreatedAt = time.Now()
+	product.LastUpdated = time.Now()
 	product.Reviews = append(product.Reviews, review)
-	product.NoOfReviews++
 
 	filter := bson.M{"_id": productID}
 
@@ -185,41 +171,9 @@ func GetProductsByCategory(collection *mongo.Collection, ctgy string, offset, li
 		return nil, -1, err
 	}
 
-	myOptions := options.Find().SetLimit(int64(limit)).SetSkip(int64(offset))
+	options := options.Find().SetLimit(int64(limit)).SetSkip(int64(offset))
 
-	cursor, err := collection.Find(ctx, filter, myOptions)
-	if err != nil {
-		return nil, -1, err
-	}
-
-	defer cursor.Close(context.Background())
-
-	for cursor.Next(ctx) {
-		err := cursor.Decode(&product)
-		if err != nil {
-			return nil, -1, err
-		}
-
-		products = append(products, product)
-	}
-
-	return products, length, nil
-}
-
-func GetProductsByReviews(collection *mongo.Collection, offset, limit int) ([]entity.Product, int64, error) {
-	ctx := context.Background()
-	var products = []entity.Product{}
-	var product entity.Product
-
-	filter := bson.M{}
-	length, err := collection.CountDocuments(ctx, filter)
-	if err != nil {
-		return nil, -1, err
-	}
-
-	myOptions := options.Find().SetLimit(int64(limit)).SetSkip(int64(offset)).SetSort(bson.M{"noofreviews": -1})
-
-	cursor, err := collection.Find(ctx, filter, myOptions)
+	cursor, err := collection.Find(ctx, filter, options)
 	if err != nil {
 		return nil, -1, err
 	}

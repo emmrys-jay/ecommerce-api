@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -13,10 +12,11 @@ import (
 	"github.com/Emmrys-Jay/ecommerce-api/repository"
 	util "github.com/Emmrys-Jay/ecommerce-api/util"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type AdminController struct {
-	UserController *controller.UserController
+	*controller.UserController
 }
 
 func NewAdminController(userController *controller.UserController) *AdminController {
@@ -27,26 +27,49 @@ func NewAdminController(userController *controller.UserController) *AdminControl
 
 // GetUser handles an admin request to get a single user stored in the database
 func (a *AdminController) GetUser(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "users")
-	userID := ctx.Param("user-id")
+	collection := db.GetCollection(a.Database, "users")
+	username := ctx.Param("username")
 
-	if userID == "" {
+	if username == "" {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid params"})
 		return
 	}
 
-	user, err := repository.GetUser(collection, userID)
+	user, err := repository.GetUser(collection, username)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, err)
-		return
+		if err == mongo.ErrNoDocuments {
+			ctx.JSON(http.StatusNotFound, err)
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, err)
 	}
 
-	ctx.JSON(http.StatusOK, *user)
+	response := controller.GetUserResponse{
+		ID:                      user.ID,
+		Username:                user.Username,
+		Fullname:                user.Fullname,
+		Email:                   user.Email,
+		EmailIsVerfied:          user.EmailIsVerfied,
+		MobileNumber:            user.MobileNumber,
+		DefaultPaymentMethod:    user.DefaultPaymentMethod,
+		SavedPaymentDetails:     user.SavedPaymentDetails,
+		DefaultDeliveryLocation: user.DefaultDeliveryLocation,
+		CreatedAt:               user.CreatedAt,
+	}
+
+	ctx.JSON(http.StatusOK, response)
+}
+
+type GetAllUsersResult struct {
+	PageID        int           `json:"page_id"`
+	ResultsFound  int           `json:"results_found"`
+	NumberOfPages int           `json:"no_of_pages"`
+	Data          []entity.User `json:"data"`
 }
 
 // GetAllUsers handles an admin request to get all users stored in a database
 func (a *AdminController) GetAllUsers(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "users")
+	collection := db.GetCollection(a.Database, "users")
 	var pageID int
 	var err error
 	var pageSize = 5
@@ -76,11 +99,14 @@ func (a *AdminController) GetAllUsers(ctx *gin.Context) {
 
 	users, length, err := repository.GetAllUsers(collection, params.Limit, params.Offset)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, err)
-		return
+		if err == mongo.ErrNoDocuments {
+			ctx.JSON(http.StatusNotFound, err)
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, err)
 	}
 
-	response := entity.PaginationResponse{
+	response := GetAllUsersResult{
 		PageID:        pageID,
 		NumberOfPages: int(math.Ceil(float64(length) / float64(pageSize))),
 		ResultsFound:  int(length),
@@ -95,9 +121,9 @@ func (a *AdminController) GetAllUsers(ctx *gin.Context) {
 }
 
 type AdminUpdateUserRequest struct {
-	UserID string `json:"user_id" form:"user_id" binding:"required"`
-	Detail string `json:"detail" form:"detail" binding:"required"` //field to be updated
-	Update string `json:"update" form:"update" binding:"required"`
+	Username string `json:"username" form:"username" binding:"required"`
+	Detail   string `json:"detail" form:"detail" binding:"required"` //field to be updated
+	Update   string `json:"update" form:"update" binding:"required"`
 }
 
 /*
@@ -109,7 +135,7 @@ type AdminUpdateUserRequest struct {
 * - default payment method
  */
 func (a *AdminController) UpdateUserFlexible(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "users")
+	collection := db.GetCollection(a.Database, "users")
 	var req AdminUpdateUserRequest
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -127,7 +153,7 @@ func (a *AdminController) UpdateUserFlexible(ctx *gin.Context) {
 		return
 	}
 
-	err := repository.UpdateUserFlexible(collection, req.UserID, req.Detail, req.Update, "")
+	err := repository.UpdateUserFlexible(collection, req.Username, req.Detail, req.Update, "")
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
@@ -139,27 +165,23 @@ func (a *AdminController) UpdateUserFlexible(ctx *gin.Context) {
 
 // DeleteUser handles a delete user request from an admin account
 func (a *AdminController) DeleteUser(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "users")
+	collection := db.GetCollection(a.Database, "users")
 
-	id := ctx.Param("user-id")
-	if id == "" {
-		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(errors.New("user id is not specified")))
-		return
-	}
+	username := ctx.Query("username")
 
-	_, err := repository.DeleteUser(collection, id)
+	_, err := repository.DeleteUser(collection, username)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
 	}
 
-	response := fmt.Sprintf("successfully deleted user with id: %s", id)
+	response := fmt.Sprintf("successfully deleted user with username: %s", username)
 	ctx.JSON(http.StatusOK, gin.H{"response": response})
 }
 
 // DeleteUser handles a delete all users request from an admin account
 func (a *AdminController) DeleteAllUsers(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "users")
+	collection := db.GetCollection(a.Database, "users")
 
 	result, err := repository.DeleteAllUsers(collection)
 	if err != nil {
@@ -169,4 +191,45 @@ func (a *AdminController) DeleteAllUsers(ctx *gin.Context) {
 
 	response := fmt.Sprintf("successfully deleted %d users", result.DeletedCount)
 	ctx.JSON(http.StatusOK, gin.H{"response": response})
+}
+
+type AddLocationRequest struct {
+	Username string          `json:"username" form:"username" binding:"required"`
+	Location entity.Location `json:"location" binding:"required"`
+}
+
+// type Location struct {
+// 	HouseNumber string `json:"house_number,omitempty"`
+// 	PhoneNo     string `json:"telephone,omitempty"`
+// 	Street      string `json:"street,omitempty"`
+// 	CityOrTown  string `json:"city_or_town,omitempty"`
+// 	State       string `json:"state,omitempty"`
+// 	Country     string `json:"country,omitempty"`
+// 	ZipCode     string `json:"zip_code,omitempty"`
+// }
+
+// AddLocation handles a register/add location request from a users account
+func (a *AdminController) AddLocation(ctx *gin.Context) {
+	collection := db.GetCollection(a.Database, "users")
+	var req AddLocationRequest
+
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
+		return
+	}
+
+	location, err := repository.AddLocation(collection, req.Username, req.Location)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
+		return
+	}
+
+	var response = struct {
+		Response string           `json:"response"`
+		Data     *entity.Location `json:"data"`
+	}{
+		Response: "successfully added location",
+		Data:     location,
+	}
+	ctx.JSON(http.StatusOK, response)
 }

@@ -32,7 +32,7 @@ import (
 *   - Videos: Slice of String
  */
 func (a *AdminController) AddOneProduct(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "products")
+	collection := db.GetCollection(a.Database, "products")
 	var req = entity.Product{}
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -41,7 +41,7 @@ func (a *AdminController) AddOneProduct(ctx *gin.Context) {
 	}
 
 	// Assign time values to the time fields before sending to the database
-	req.ID = primitive.NewObjectIDFromTimestamp(time.Now()).Hex()
+	req.ID = primitive.NewObjectIDFromTimestamp(time.Now()).String()
 	req.CreatedAt = time.Now()
 	req.LastUpdated = time.Now()
 	req.NumOfOrders = 0
@@ -57,7 +57,7 @@ func (a *AdminController) AddOneProduct(ctx *gin.Context) {
 
 // AddProducts adds multiple documents from the request body to the database
 func (a *AdminController) AddProducts(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "products")
+	collection := db.GetCollection(a.Database, "products")
 	var req = []entity.Product{}
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -69,7 +69,7 @@ func (a *AdminController) AddProducts(ctx *gin.Context) {
 
 	// Assign time values to the time fields before sending to the database
 	for i := range req {
-		req[i].ID = primitive.NewObjectIDFromTimestamp(time.Now()).Hex()
+		req[i].ID = primitive.NewObjectIDFromTimestamp(time.Now()).String()[10:34]
 		req[i].CreatedAt = currentTime
 		req[i].LastUpdated = currentTime
 		req[i].NumOfOrders = 0
@@ -92,27 +92,27 @@ type DeleteProductRequest struct {
 }
 
 // DeleteProduct deletes a document whose exact name is specified
-func (a *AdminController) DeleteProducts(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "products")
+func (a *AdminController) DeleteProduct(ctx *gin.Context) {
+	collection := db.GetCollection(a.Database, "products")
+	var req DeleteProductRequest // create variable to be used to send data to db package
 
-	ids := ctx.Query("id")
-	if ids == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "product(s) not specified"})
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
 		return
 	}
 
-	length, err := repository.DeleteProduct(collection, ids)
+	result, err := repository.DeleteProduct(collection, req.Name)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
 		return
 	}
-	response := fmt.Sprintf("deleted %d document(s)", length)
+	response := fmt.Sprintf("deleted %d document with name: %s", result.DeletedCount, req.Name)
 	ctx.JSON(http.StatusOK, gin.H{"response": response})
 }
 
 // DeleteAllProducts deletes all documents in the products collection
 func (a *AdminController) DeleteAllProducts(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "products")
+	collection := db.GetCollection(a.Database, "products")
 
 	result, err := repository.DeleteAllProducts(collection)
 	if err != nil {
@@ -126,32 +126,33 @@ func (a *AdminController) DeleteAllProducts(ctx *gin.Context) {
 
 // UpdateProductRequest stores update request params
 type UpdateProductRequest struct {
-	Price    float64 `json:"price" form:"price"`
-	Quantity int64   `json:"quantity" form:"quantity"`
+	ID       string           `json:"id" form:"name" binding:"required"`
+	Price    float64          `json:"price" form:"price"`
+	Quantity int64            `json:"quantity" form:"quantity"`
+	Features []entity.Feature `json:"features" form:"features"`
 }
 
 // UpdateProduct updates either the price or quantity of a product specified with its id
 func (a *AdminController) UpdateProduct(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "products")
+	collection := db.GetCollection(a.Database, "products")
 	var req UpdateProductRequest
 
-	if err := ctx.ShouldBind(&req); err != nil {
+	if err := ctx.ShouldBindQuery(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
 		return
 	}
 
-	id := ctx.Param("id")
-	if id == "" {
+	if req.ID == "" {
 		ctx.JSON(http.StatusNotAcceptable, gin.H{"error": "nothing specified to update"})
 		return
 	}
 
-	if req.Price == 0 && req.Quantity == 0 {
+	if req.Price == 0 && req.Quantity == 0 && req.Features == nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid update params"})
 		return
 	}
 
-	result, err := repository.UpdateProduct(collection, id, req.Price, req.Quantity, 0)
+	result, err := repository.UpdateProduct(collection, req.ID, req.Price, req.Quantity, req.Quantity)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			ctx.JSON(http.StatusNotFound, util.ErrorResponse(err))
@@ -160,7 +161,7 @@ func (a *AdminController) UpdateProduct(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
 	}
-	response := fmt.Sprintf("updated %d document with id: %s", result.ModifiedCount, id)
+	response := fmt.Sprintf("updated %d document with id: %s", result.ModifiedCount, req.ID)
 	ctx.JSON(http.StatusOK, gin.H{"response": response})
 
 }

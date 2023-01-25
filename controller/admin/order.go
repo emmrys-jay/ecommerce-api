@@ -23,7 +23,7 @@ type GetAllOrdersResult struct {
 
 // GetAllOrders handles a request to get all site orders from an admin
 func (a *AdminController) GetAllOrders(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "orders")
+	collection := db.GetCollection(a.Database, "orders")
 	var err error
 	var pageID int
 	var pageSize = 5
@@ -76,9 +76,9 @@ func (a *AdminController) GetAllOrders(ctx *gin.Context) {
 
 }
 
-// DeliverOrder is used by an admin to indicate that an order has been delivered
+// DeliverOrder is used by an admin t indicate that an order has been delivered
 func (a *AdminController) DeliverOrder(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "orders")
+	collection := db.GetCollection(a.Database, "orders")
 
 	orderID := ctx.Param("order-id")
 	if orderID == "" {
@@ -101,7 +101,7 @@ func (a *AdminController) DeliverOrder(ctx *gin.Context) {
 
 // DeleteOrder is an admin specific handler to delete a single order
 func (a *AdminController) DeleteOrder(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "orders")
+	collection := db.GetCollection(a.Database, "orders")
 
 	orderID := ctx.Param("id")
 	if orderID == "" {
@@ -119,17 +119,17 @@ func (a *AdminController) DeleteOrder(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"success": response})
 }
 
-// DeleteAllOrdersWithUserID is an admin specific handler to delete all orders by a single user
-func (a *AdminController) DeleteAllOrdersWithUserID(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "orders")
+// DeleteAllOrdersWithUsername is an admin specific handler to delete all orders by a single user
+func (a *AdminController) DeleteAllOrdersWithUsername(ctx *gin.Context) {
+	collection := db.GetCollection(a.Database, "orders")
 
-	username := ctx.Param("user-id")
+	username := ctx.Param("username")
 	if username == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid param - no id specified"})
 		return
 	}
 
-	result, err := repository.DeleteAllOrdersWithUserID(collection, username)
+	result, err := repository.DeleteAllOrdersWithUsername(collection, username)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
@@ -141,7 +141,7 @@ func (a *AdminController) DeleteAllOrdersWithUserID(ctx *gin.Context) {
 
 // DeleteAllOrders is an admin specific handler to delete all orders of different users
 func (a *AdminController) DeleteAllOrders(ctx *gin.Context) {
-	collection := db.GetCollection(a.UserController.Database, "orders")
+	collection := db.GetCollection(a.Database, "orders")
 
 	result, err := repository.DeleteAllOrders(collection)
 	if err != nil {

@@ -13,8 +13,8 @@ import (
 )
 
 func OrderProductDirectly(
-	collection *mongo.Collection, location *entity.Location, quantity int,
-	userID, fullname, productID, paymentMethod string) (*mongo.InsertOneResult, string, error) {
+	collection *mongo.Collection, location entity.Location, quantity int,
+	username, userID, fullname, productID, paymentMethod, orderID string) (*mongo.InsertOneResult, string, error) {
 
 	ctx := context.Background()
 
@@ -26,14 +26,18 @@ func OrderProductDirectly(
 	}
 
 	order := entity.Order{
-		ID:               primitive.NewObjectIDFromTimestamp(time.Now()).Hex(),
-		UserID:           userID,
+		ID:               orderID,
+		Username:         username,
 		FullName:         fullname,
-		DeliveryLocation: *location,
+		DeliveryLocation: location,
 		Product:          *product,
 		ProductQuantity:  quantity,
 		IsDelivered:      false,
 		CreatedAt:        time.Now(),
+	}
+
+	if orderID == "" {
+		order.ID = primitive.NewObjectIDFromTimestamp(time.Now()).String()[10:34]
 	}
 
 	result, err := collection.InsertOne(ctx, order)
@@ -43,6 +47,14 @@ func OrderProductDirectly(
 
 	// Update product quantity left and number of orders of that product
 	_, err = UpdateProduct(productsCollection, productID, 0.00, -int64(quantity), int64(quantity))
+	if err != nil {
+		return nil, "", err
+	}
+
+	usersCollection := db.GetCollection(collection.Database(), "users")
+
+	// Add order to the orders in the user collection
+	_, err = AddOrderToUser(usersCollection, userID, order)
 	if err != nil {
 		return nil, "", err
 	}
@@ -69,12 +81,12 @@ func GetSingleOrder(collection *mongo.Collection, orderID string) (*entity.Order
 	return &order, nil
 }
 
-func GetOrdersByUser(collection *mongo.Collection, userID string, limit, offset int) ([]entity.Order, int64, error) {
+func GetOrdersWithUsername(collection *mongo.Collection, username string, limit, offset int) ([]entity.Order, int64, error) {
 	ctx := context.Background()
 	var orders = []entity.Order{}
 	var order = entity.Order{}
 
-	filter := bson.M{"user_id": userID}
+	filter := bson.M{"username": username}
 
 	length, err := collection.CountDocuments(ctx, filter)
 	if err != nil {
@@ -148,12 +160,34 @@ func DeliverOrder(collection *mongo.Collection, orderID string) (*mongo.UpdateRe
 	order.IsDelivered = true
 	order.TimeDelivered = currentTime
 
-	result, err := collection.ReplaceOne(ctx, filter, order)
+	_, err = collection.ReplaceOne(ctx, filter, order)
 	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	usersCollection := db.GetCollection(collection.Database(), "users")
+
+	user, err := GetUser(usersCollection, "", order.Username)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range user.Orders {
+		if user.Orders[i].ID == orderID {
+			user.Orders[i].IsDelivered = true
+			user.Orders[i].TimeDelivered = currentTime
+			break
+		}
+	}
+
+	filter = bson.M{"username": order.Username}
+
+	result2, err := usersCollection.ReplaceOne(ctx, filter, user)
+	if err != nil {
+		return nil, err
+	}
+
+	return result2, nil
 }
 
 func ReceiveOrder(collection *mongo.Collection, username, orderID string) (*mongo.UpdateResult, error) {
@@ -177,31 +211,57 @@ func ReceiveOrder(collection *mongo.Collection, username, orderID string) (*mong
 
 	order.IsReceived = true
 
-	result, err := collection.ReplaceOne(ctx, filter, order)
+	_, err = collection.ReplaceOne(ctx, filter, order)
 	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
-}
+	usersCollection := db.GetCollection(collection.Database(), "users")
 
-func OrderAllCartItems(collection *mongo.Collection, userID, fullname, paymentMethod string, location entity.Location) (int, error) {
-
-	cartCollection := db.GetCollection(collection.Database(), "cart")
-
-	cartItems, _, err := GetUserCartItems(cartCollection, userID, 0, 0)
+	user, err := GetUser(usersCollection, "", username)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	for _, val := range cartItems {
-		_, _, err := OrderProductDirectly(collection, &location, int(val.Quantity), userID, fullname, val.Product.ID, paymentMethod)
-		if err != nil {
-			return 0, err
+	for i := range user.Orders {
+		if user.Orders[i].ID == orderID {
+			user.Orders[i].IsReceived = true
+			break
 		}
 	}
 
-	return len(cartItems), nil
+	filter = bson.M{"username": username}
+
+	result2, err := usersCollection.ReplaceOne(ctx, filter, user)
+	if err != nil {
+		return nil, err
+	}
+
+	return result2, nil
+
+}
+
+func OrderAllCartItems(collection *mongo.Collection,
+	username, userID, fullname, paymentMethod string,
+	location entity.Location) (int, string, error) {
+
+	cartCollection := db.GetCollection(collection.Database(), "cart")
+
+	cartItems, _, err := GetUserCartItems(cartCollection, username, 0, 0)
+	if err != nil {
+		return 0, "", err
+	}
+
+	productNamesString := ""
+	for _, val := range cartItems {
+		_, name, err := OrderProductDirectly(collection, location, int(val.Quantity), username, userID, fullname, val.Product.ID, paymentMethod, "")
+		if err != nil {
+			return 0, "", err
+		}
+		productNamesString = productNamesString + " " + name
+	}
+
+	return len(cartItems), productNamesString, nil
 
 }
 
@@ -218,10 +278,10 @@ func DeleteOrder(collection *mongo.Collection, id string) (*mongo.DeleteResult, 
 	return result, nil
 }
 
-func DeleteAllOrdersWithUserID(collection *mongo.Collection, userID string) (*mongo.DeleteResult, error) {
+func DeleteAllOrdersWithUsername(collection *mongo.Collection, username string) (*mongo.DeleteResult, error) {
 	ctx := context.Background()
 
-	filter := bson.M{"user_id": userID}
+	filter := bson.M{"username": username}
 
 	result, err := collection.DeleteMany(ctx, filter)
 	if err != nil {

@@ -38,19 +38,19 @@ func (u *UserController) AddToCart(ctx *gin.Context) {
 		req.Quantity = 1
 	}
 
-	userID, err := util.UserIDFromToken(ctx)
+	username, err := util.UsernameFromToken(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "could not get logged in user from token"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
 		return
 	}
 
-	result, err := repository.AddToCart(collection, req.Quantity, req.ProductID, userID)
+	result, err := repository.AddToCart(collection, req.Quantity, req.ProductID, username)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "user already exists"})
 			return
 		}
-		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
+		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
 	}
 
@@ -69,21 +69,21 @@ func (u *UserController) RemoveFromCart(ctx *gin.Context) {
 		return
 	}
 
-	username, err := util.UserIDFromToken(ctx)
+	username, err := util.UsernameFromToken(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "could not get logged in user from token"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
 		return
 	}
 
 	result, err := repository.RemoveFromCart(collection, cartItemID, username)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
+		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
 	}
 
 	if result.DeletedCount == 0 {
 		ctx.JSON(http.StatusNotFound, gin.H{"not found": "specified params did not match any document"})
-		return
+
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"success": "removed product from cart"})
@@ -116,13 +116,13 @@ func (u *UserController) UpdateCartQuantity(ctx *gin.Context) {
 
 	username, err := util.UsernameFromToken(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "could not get logged in user from token"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
 		return
 	}
 
 	_, err = repository.UpdateCartQuantity(collection, req.Quantity, req.CartID, username)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
+		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
 	}
 
@@ -152,9 +152,9 @@ func (u *UserController) GetUserCartItems(ctx *gin.Context) {
 		}
 	}
 
-	userID, err := util.UserIDFromToken(ctx)
+	username, err := util.UsernameFromToken(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not get logged in user from token"})
 		return
 	}
 
@@ -166,13 +166,13 @@ func (u *UserController) GetUserCartItems(ctx *gin.Context) {
 		Limit:  pageSize,
 	}
 
-	cartItems, length, err := repository.GetUserCartItems(collection, userID, param.Offset, param.Limit)
+	cartItems, length, err := repository.GetUserCartItems(collection, username, param.Offset, param.Limit)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			ctx.JSON(http.StatusNotFound, gin.H{"not found": "No items in cart currently"})
 			return
 		}
-		ctx.JSON(http.StatusBadRequest, util.ErrorResponse(err))
+		ctx.JSON(http.StatusInternalServerError, util.ErrorResponse(err))
 		return
 	}
 

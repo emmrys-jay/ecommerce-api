@@ -22,13 +22,13 @@ func AuthorizeAdmin(adminUsername string) gin.HandlerFunc {
 
 		payload, err := tokenMaker.VerifyToken(jwtToken)
 		if err != nil {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"unauthorized": auth.ErrInvalidToken.Error()})
+			ctx.JSON(http.StatusUnauthorized, gin.H{"unauthorized": "access denied"})
 			ctx.Abort()
 			return
 		}
 
 		if err := payload.Valid(); err != nil {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"unauthorized": auth.ErrExpiredToken.Error()})
+			ctx.JSON(http.StatusUnauthorized, gin.H{"unauthorized": "access denied"})
 			ctx.Abort()
 			return
 		}

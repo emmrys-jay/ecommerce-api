@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -13,37 +14,36 @@ import (
 
 //const dbDetails = "mongodb://ecommerce-api:ecommerceapp001@localhost:27017"
 
-// GetCollection gets a collection from a database
-func GetCollection(db *mongo.Database, collection string) *mongo.Collection {
-	return db.Collection(collection)
-}
-
-// ConfigDB configures and connects to database
+// Add username param and password
 func ConfigDB() *mongo.Database {
 	// get a mongo sessions
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
 	if err != nil {
-		log.Fatalln("Error connecting to mongo: ", err)
+		log.Fatalln("mongo.Connect(ctx, options.Client().ApplyURI() ERROR: ", err)
 	}
 
 	if err = client.Ping(ctx, readpref.Primary()); err != nil {
-		log.Fatalln("Error pinging database: ", err)
+		log.Fatalln("client.Ping(ctx, readpref.Primary()) ERROR: ", err)
 	}
 
-	log.Println("You connected to your mongodb database.")
+	fmt.Println("You connected to your mongo database.")
 
 	db := client.Database("ecommerce")
-	err = configDBCollections(db)
+	err = ConfigDBCollections(db)
 	if err != nil {
-		log.Fatalln("Error configuring database: ", err)
+		log.Fatalln("ConfigDBCOllections() ERROR: ", err)
 	}
 
 	return db
 }
 
-func configDBCollections(db *mongo.Database) error {
+func GetCollection(db *mongo.Database, collection string) *mongo.Collection {
+	return db.Collection(collection)
+}
+
+func ConfigDBCollections(db *mongo.Database) error {
 	collection := GetCollection(db, "users")
 	ctx := context.Background()
 
@@ -81,8 +81,8 @@ func configDBCollections(db *mongo.Database) error {
 	collection = GetCollection(db, "cart")
 
 	_, err = collection.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    bson.D{{Key: "product_id", Value: 1}},
-		Options: options.Index().SetName("product_id_index").SetUnique(true),
+		Keys:    bson.D{{Key: "product_name", Value: 1}},
+		Options: options.Index().SetName("product_name_index").SetUnique(true),
 	})
 
 	return err

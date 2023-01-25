@@ -16,7 +16,6 @@ type Product struct {
 	Category    string    `json:"category,omitempty" bson:"category" binding:"required"`
 	Features    []Feature `json:"features,omitempty" bson:"features"`
 	Reviews     []Review  `json:"reviews,omitempty" bson:"reviews"`
-	NoOfReviews int64     `json:"no_of_reviews,omitempty" bson:"no_of_reviews"`
 	CreatedAt   time.Time `json:"created_at,omitempty" bson:"created_at"`
 	LastUpdated time.Time `json:"last_updated,omitempty" bson:"last_updated"`
 	NumOfOrders int64     `json:"num_of_orders,omitempty"`
